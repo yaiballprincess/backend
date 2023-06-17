@@ -62,25 +62,50 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules:  MyLib
+    exposed-modules:  
+        MyLib,
+        YIBP.App,
+        YIBP.Config,
+        YIBP.Server.Auth,
+        YIBP.Server,
+        YIBP.Db.Util,
+        YIBP.Db.User,
+        YIBP.Core.User
 
     -- Modules included in this library but not exported.
     -- other-modules:
 
     -- LANGUAGE extensions used by modules in this package.
-    other-extensions:
+    default-extensions:
         DataKinds,
         DeriveGeneric,
         RankNTypes,
-        TypeApplications
+        TypeApplications,
+        TemplateHaskell,
+        QuasiQuotes,
+        GADTs,
+        TypeFamilies,
+        TypeOperators,
+        LambdaCase,
+        DuplicateRecordFields,
+        NoFieldSelectors,
+        UndecidableInstances,
+        OverloadedLabels
 
     -- Other library packages from which modules are imported.
     build-depends:
-        base ^>=4.17.1.0,
-        servant ==0.19.1,
         aeson,
+        async,
+        base ^>=4.17.1.0,
+        bytestring,
+        servant ==0.19.1,
+        servant-server,
+        servant-auth,
+        servant-auth-server,
         mtl,
         transformers,
+        time,
+        password,
         text,
         vector,
         unordered-containers,
@@ -88,7 +113,13 @@ library
         stm,
         wreq,
         hasql ==1.6.3,
-        optics
+        hasql-th,
+        optics,
+        optics-core,
+        optics-th,
+        warp,
+        jose,
+        uuid
 
     -- Directories containing source files.
     hs-source-dirs:   src
