@@ -70,6 +70,7 @@ library
         YIBP.Server,
         YIBP.Db.Util,
         YIBP.Db.User,
+        YIBP.Db.Auth,
         YIBP.Core.User
 
     -- Modules included in this library but not exported.
@@ -102,6 +103,7 @@ library
         servant-server,
         servant-auth,
         servant-auth-server,
+        cookie,
         mtl,
         transformers,
         time,
