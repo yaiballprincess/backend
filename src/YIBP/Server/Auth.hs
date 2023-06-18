@@ -26,7 +26,6 @@ import Data.UUID.V4
 
 import Optics
 
-import Control.Monad (unless, when)
 import Control.Monad.Error.Class (MonadError)
 import Control.Monad.Reader
 import Crypto.JOSE
@@ -37,7 +36,6 @@ import YIBP.Core.User qualified as C
 import YIBP.Db.Auth
 import YIBP.Db.User
 import YIBP.Db.Util
-import YIBP.Util
 
 newtype AuthData = AuthData {uid :: Int}
   deriving (Show, Eq, Generic)

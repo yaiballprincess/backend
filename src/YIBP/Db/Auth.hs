@@ -1,8 +1,6 @@
 module YIBP.Db.Auth (insertRefreshToken, getCreatedAtByRefreshToken, updateRefreshToken) where
 
-import Data.ByteString qualified as BS
 import Data.Int
-import Data.Text qualified as T
 import Data.Time qualified as Time
 import Data.UUID (UUID)
 import Data.Bifunctor
