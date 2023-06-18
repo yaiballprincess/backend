@@ -16,4 +16,4 @@ checkPassword password =
     && (count isDigit password >= 2)
 
 checkUsername :: T.Text -> Bool
-checkUsername = T.any (\ch -> isLetter ch || isDigit ch)
+checkUsername = T.all (\ch -> isLetter ch || isDigit ch)
