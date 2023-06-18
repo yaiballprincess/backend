@@ -6,15 +6,16 @@ module YIBP.Server.Auth (AuthAPI (..), theAuthAPI) where
 
 import Control.Monad.IO.Class
 
+import Web.Cookie
+
 import Servant
-import Servant.API
 import Servant.API.Generic
 import Servant.Auth
-import Servant.Server
 import Servant.Server.Generic
 
 import Data.Aeson
 import Data.ByteString qualified as BS
+import Data.List
 import Data.Maybe
 import Data.Password.Bcrypt
 import Data.Text qualified as T
@@ -27,10 +28,11 @@ import Optics
 
 import Control.Monad (unless, when)
 import Control.Monad.Error.Class (MonadError)
-import Control.Monad.Reader.Class (MonadReader, asks)
+import Control.Monad.Reader
 import Crypto.JOSE
 import Servant.Auth.Server
 import YIBP.App
+import YIBP.Config
 import YIBP.Core.User qualified as C
 import YIBP.Db.Auth
 import YIBP.Db.User
@@ -52,17 +54,11 @@ data LoginRequest = LoginRequest
 
 makeFieldsNoPrefix ''LoginRequest
 
-newtype RefreshTokenRequest = RefreshTokenRequest UUID
+newtype RefreshTokenResponse = RefreshTokenResponse
+  {accessToken :: T.Text}
   deriving (Show, Eq, Generic)
-  deriving newtype (FromJSON, ToJSON)
+  deriving anyclass (FromJSON, ToJSON)
 
-data RefreshTokenResponse = RefreshTokenResponse
-  { refreshToken :: !UUID
-  , accessToken :: !T.Text
-  }
-  deriving (Show, Eq, Generic, FromJSON, ToJSON)
-
-makeFieldsNoPrefix ''RefreshTokenRequest
 makeFieldsNoPrefix ''RefreshTokenResponse
 
 data AuthAPI route = AuthAPI
@@ -80,7 +76,7 @@ data AuthAPI route = AuthAPI
   , _refresh
       :: route
         :- "refresh"
-        :> ReqBody '[JSON] RefreshTokenRequest
+        :> Header "Cookie" T.Text
         :> Get '[JSON] (Headers '[Header "Set-Cookie" SetCookie] RefreshTokenResponse)
   }
   deriving (Generic)
@@ -102,9 +98,9 @@ registerHandler authData req = do
   b <- isAdmin authData
   unless b $ do
     throwError err403
-  when (C.checkUsername (req ^. #username)) $ do
+  unless (C.checkUsername (req ^. #username)) $ do
     throwError $ err422 {errBody = "invalid username"}
-  when (C.checkPassword (req ^. #password)) $ do
+  unless (C.checkPassword (req ^. #password)) $ do
     throwError $ err422 {errBody = "invalid password"}
   PasswordHash hashedPassword <- hashPassword $ mkPassword $ req ^. #password
   insertUser (req ^. #username) (T.encodeUtf8 hashedPassword)
@@ -114,51 +110,92 @@ loginHandler
      , WithDb env m
      , MonadReader env m
      , Has JWK env
+     , Has Config env
      , MonadError ServerError m
      )
   => LoginRequest
   -> m (Headers '[Header "Set-Cookie" SetCookie] RefreshTokenResponse)
 loginHandler req = do
-  PasswordHash hashedPassword <- hashPassword $ mkPassword $ req ^. #password
-  mb <- findUserByUsernameAndPassword (req ^. #username) (T.encodeUtf8 hashedPassword)
+  let password = mkPassword (req ^. #password)
+  mb <- findUserByUsername (req ^. #username)
   case mb of
     Nothing -> throwError err403
-    Just uid -> do
+    Just (uid, hashedPassword) -> do
+      when (checkPassword password (PasswordHash (T.decodeUtf8 hashedPassword)) == PasswordCheckFail) $ do
+        throwError err403
       randomUUID <- liftIO nextRandom
       mtime <- insertRefreshToken randomUUID uid
       case mtime of
         Nothing -> throwError err403
         Just time -> do
-          cookie <-
-            liftIO $
-              makeXsrfCookie $
-                defaultCookieSettings
-                  { cookiePath = Just "/api/auth"
-                  , cookieExpires = Just $ Time.addUTCTime (60 * Time.nominalDay) time -- TODO: use from settings
-                  , sessionCookieName = "MyRefreshToken"
-                  }
-          myJWK <- asks $ obtain @JWK
-          ejwt <-
-            liftIO $
-              makeJWT
-                (AuthData uid)
-                (defaultJWTSettings myJWK)
-                (Just $ Time.addUTCTime (60 * 60) time)
-          case ejwt of
-            Left _ -> throwError err500
-            Right jwt ->
-              pure $
-                addHeader cookie $
-                  RefreshTokenResponse
-                    { refreshToken = randomUUID
-                    , accessToken = T.decodeUtf8 $ BS.toStrict jwt
-                    }
+          (cookie, t) <- genCookieAndJWT randomUUID uid time
+          pure $ addHeader cookie $ RefreshTokenResponse t
 
 refreshHandler
-  :: (MonadIO m)
-  => RefreshTokenRequest
+  :: ( MonadIO m
+     , MonadError ServerError m
+     , WithDb env m
+     , MonadReader env m
+     , Has Config env
+     , Has JWK env
+     )
+  => Maybe T.Text
   -> m (Headers '[Header "Set-Cookie" SetCookie] RefreshTokenResponse)
-refreshHandler req = undefined
+refreshHandler (Just rawCookieText) = do
+  let maybeRefreshToken = fromText . snd =<< find (\(key, _) -> key == "MyRefreshToken") (parseCookiesText $ T.encodeUtf8 rawCookieText)
+  case maybeRefreshToken of
+    Nothing -> throwError err403
+    Just token -> do
+      maybeCreatedAt <- getCreatedAtByRefreshToken token
+      case maybeCreatedAt of
+        Nothing -> throwError err403
+        Just createdAt -> do
+          currTime <- liftIO Time.getCurrentTime
+          when (Time.diffUTCTime currTime createdAt >= 60 * Time.nominalDay) $ do
+            throwError err403
+          randomUUID <- liftIO nextRandom
+          maybeNewCreatedAt <- updateRefreshToken token randomUUID
+          case maybeNewCreatedAt of
+            Nothing -> throwError err403
+            Just (newCreatedAt, uid) -> do
+              (cookie, t) <- genCookieAndJWT randomUUID uid newCreatedAt
+              pure $ addHeader cookie $ RefreshTokenResponse t
+refreshHandler _ = throwError err403
+
+genCookieAndJWT
+  :: ( MonadIO m
+     , MonadReader env m
+     , Has JWK env
+     , Has Config env
+     , MonadError ServerError m
+     )
+  => UUID
+  -> Int
+  -> Time.UTCTime
+  -> m (SetCookie, T.Text)
+genCookieAndJWT uuid ownerId createdAt = do
+  theConfig <- asks $ obtain @Config
+  let refreshTokenDuration = theConfig ^. #refreshTokenDuration
+  let accessTokenDuration = theConfig ^. #accessTokenDuration
+  let cookie =
+        defaultSetCookie
+          { setCookieName = "MyRefreshToken"
+          , setCookieValue = T.encodeUtf8 $ toText uuid
+          , setCookieExpires = Just $ Time.addUTCTime refreshTokenDuration createdAt
+          , setCookiePath = Just "/api/auth"
+          , setCookieHttpOnly = True
+          }
+  myJWK <- asks $ obtain @JWK
+  ejwt <-
+    liftIO $
+      makeJWT
+        (AuthData ownerId)
+        (defaultJWTSettings myJWK)
+        (Just $ Time.addUTCTime accessTokenDuration createdAt)
+  case ejwt of
+    Left _ -> throwError err500
+    Right jwt ->
+      pure (cookie, T.decodeUtf8 $ BS.toStrict jwt)
 
 isAdmin
   :: (MonadIO m, WithDb env m)
