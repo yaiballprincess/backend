@@ -23,8 +23,8 @@ data DbConfig = DbConfig
 data Config = Config
   { dbSettings :: !DbConfig
   , jwk :: !JWK
-  , accessTokenDuration :: !DiffTime
-  , refreshTokenDuration :: !DiffTime
+  , accessTokenDuration :: !NominalDiffTime
+  , refreshTokenDuration :: !NominalDiffTime
   }
   deriving (Show, Eq)
 
@@ -56,9 +56,8 @@ parseConfig = do
     Config
       { dbSettings = dbConfig
       , jwk = jwkConfig
-      , accessTokenDuration = secondsToDiffTime $ 30 * minuteInSeconds
-      , refreshTokenDuration = secondsToDiffTime $ 60 * dayInSeconds
+      , accessTokenDuration = 30 * minuteInSeconds
+      , refreshTokenDuration = 60 * nominalDay
       }
   where
     minuteInSeconds = 60
-    dayInSeconds = 86400
