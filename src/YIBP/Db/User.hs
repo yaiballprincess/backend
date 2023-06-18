@@ -1,4 +1,4 @@
-module YIBP.Db.User (isUserAdmin, insertUser, findUserByUsernameAndPassword) where
+module YIBP.Db.User (isUserAdmin, insertUser, findUserByUsername) where
 
 import Data.ByteString qualified as BS
 import Data.Int
@@ -11,6 +11,7 @@ import Hasql.Statement
 import Hasql.TH qualified as TH
 
 import YIBP.Db.Util
+import Data.Bifunctor
 
 isUserAdmin
   :: (WithDb env m, HasCallStack)
@@ -44,18 +45,17 @@ insertUser username hashedPassword = do
          returning "id" :: int4
       |]
 
-findUserByUsernameAndPassword
+findUserByUsername
   :: (WithDb env m, HasCallStack)
   => T.Text
-  -> BS.ByteString
-  -> m (Maybe Int)
-findUserByUsernameAndPassword username hashedPassword = do
-  r <- withConn $ Session.run (Session.statement (username, hashedPassword) stmt)
-  liftError (fmap (fmap fromIntegral) r)
+  -> m (Maybe (Int, BS.ByteString))
+findUserByUsername username = do
+  r <- withConn $ Session.run (Session.statement username stmt)
+  liftError (fmap (fmap (first fromIntegral)) r)
   where
-    stmt :: Statement (T.Text, BS.ByteString) (Maybe Int32)
+    stmt :: Statement T.Text (Maybe (Int32, BS.ByteString))
     stmt =
       [TH.maybeStatement|
-        select ("id" :: int4) from "user" 
-        where "username" = ($1 :: text) and  "password" = ($2 :: bytea)
+        select ("id" :: int4), ("password" :: bytea) from "user" 
+        where "username" = ($1 :: text)
       |]
