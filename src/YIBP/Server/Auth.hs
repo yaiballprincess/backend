@@ -195,7 +195,7 @@ withAuth :: (MonadError ServerError m) => AuthResult AuthData -> m a -> m a
 withAuth (Authenticated _) m = m
 withAuth _ _ = throwError err403
 
--- See https://github.com/haskell-servant/servant/pull/1531/
-withAuth' :: (GenericServant routes mode, ThrowAll (ToServant routes mode)) => AuthResult AuthData -> routes mode -> routes mode
+
+withAuth' :: ThrowAll a => AuthResult AuthData -> a -> a
 withAuth' (Authenticated _) a = a
-withAuth' _ _ = fromServant (throwAll err403)
+withAuth' _ _ = throwAll err403
