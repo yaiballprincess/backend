@@ -27,7 +27,8 @@ CREATE TABLE "poll_option" (
 CREATE TABLE "sender" (
   "id" SERIAL NOT NULL PRIMARY KEY,
   "name" TEXT NOT NULL UNIQUE,
-  "access_token" TEXT NOT NULL UNIQUE
+  "access_token" TEXT NOT NULL UNIQUE,
+  "bot_access_token" TEXT
 );
 
 CREATE TABLE "receiver" (
