@@ -17,9 +17,23 @@ import Servant.Auth.Server (defaultCookieSettings, defaultJWTSettings)
 import YIBP.App
 import YIBP.Config (parseConfig)
 import YIBP.Server
+import Servant.Auth.Server.Internal.AddSetCookie
+import GHC.Generics
 
 nt :: Env -> AppT Handler a -> Handler a
 nt e x = runReaderT x e
+
+-- See https://github.com/haskell-servant/servant/pull/1531/
+type instance AddSetCookieApi (NamedRoutes api) = AddSetCookieApi (ToServantApi api)
+instance {-# OVERLAPS #-}
+  ( AddSetCookies ('S n) (ServerT (ToServantApi api) m) cookiedApi
+  , Generic (api (AsServerT m))
+  , GServantProduct (Rep (api (AsServerT m)))
+  , ToServant api (AsServerT m) ~ ServerT (ToServantApi api) m
+  )
+  => AddSetCookies ('S n) (api (AsServerT m)) cookiedApi where
+  addSetCookies cookies = addSetCookies cookies . toServant
+
 
 runApp :: IO ()
 runApp = do

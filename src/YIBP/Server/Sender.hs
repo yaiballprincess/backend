@@ -42,10 +42,10 @@ data AllSenderUnitResponse = AllSenderUnitResponse
 makeFieldsNoPrefix ''AllSenderUnitResponse
 
 data SenderAPI route = SenderAPI
-  { _add :: route :- Auth '[JWT] AuthData :> "add" :> ReqBody '[JSON] Sender :> Post '[JSON] NoContent
-  , _all :: route :- Auth '[JWT] AuthData :> "all" :> Get '[JSON] (V.Vector AllSenderUnitResponse)
-  , _remove :: route :- Auth '[JWT] AuthData :> "remove" :> ReqBody '[JSON] Int :> Delete '[JSON] NoContent
-  , _edit :: route :- Auth '[JWT] AuthData :> "edit" :> ReqBody '[JSON] EditSenderRequest :> Post '[JSON] NoContent
+  { _add :: route :- "add" :> ReqBody '[JSON] Sender :> Post '[JSON] NoContent
+  , _all :: route :- "all" :> Get '[JSON] (V.Vector AllSenderUnitResponse)
+  , _remove :: route :- "remove" :> ReqBody '[JSON] Int :> Delete '[JSON] NoContent
+  , _edit :: route :- "edit" :> ReqBody '[JSON] EditSenderRequest :> Post '[JSON] NoContent
   }
   deriving (Generic)
 
@@ -58,24 +58,23 @@ theSenderAPI =
     , _edit = editHandler
     }
 
-addHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => AuthResult AuthData -> Sender -> m NoContent
-addHandler _authData req = withAuth _authData $ do
+addHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => Sender -> m NoContent
+addHandler req = do
   _id <- insertSender req
   case _id of
     Just _ -> pure NoContent
     Nothing -> throwError err400
 
-allHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => AuthResult AuthData -> m (V.Vector AllSenderUnitResponse)
-allHandler _authData = withAuth _authData $ do
-  V.map (\(i, n) -> AllSenderUnitResponse i n) <$> getAllSenders
+allHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => m (V.Vector AllSenderUnitResponse)
+allHandler = V.map (\(i, n) -> AllSenderUnitResponse i n) <$> getAllSenders
 
-removeHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => AuthResult AuthData -> Int -> m NoContent
-removeHandler _authData _id = withAuth _authData $ do
+removeHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => Int -> m NoContent
+removeHandler _id = do
   isSuccess <- deleteSender _id
   if isSuccess then pure NoContent else throwError err400
 
-editHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => AuthResult AuthData -> EditSenderRequest -> m NoContent
-editHandler _authData req = withAuth _authData $ do
+editHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => EditSenderRequest -> m NoContent
+editHandler req = do
   isSuccess <-
     updateSender
       (req ^. #id)

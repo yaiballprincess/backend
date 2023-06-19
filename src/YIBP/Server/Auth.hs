@@ -2,7 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module YIBP.Server.Auth (AuthAPI (..), theAuthAPI, AuthData (..), withAuth) where
+module YIBP.Server.Auth (AuthAPI (..), theAuthAPI, AuthData (..), withAuth, withAuth') where
 
 import Control.Monad.IO.Class
 
@@ -194,3 +194,8 @@ isAdmin _ = pure False
 withAuth :: (MonadError ServerError m) => AuthResult AuthData -> m a -> m a
 withAuth (Authenticated _) m = m
 withAuth _ _ = throwError err403
+
+-- See https://github.com/haskell-servant/servant/pull/1531/
+withAuth' :: (GenericServant routes mode, ThrowAll (ToServant routes mode)) => AuthResult AuthData -> routes mode -> routes mode
+withAuth' (Authenticated _) a = a
+withAuth' _ _ = fromServant (throwAll err403)
