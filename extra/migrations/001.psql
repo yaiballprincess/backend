@@ -33,13 +33,13 @@ CREATE TABLE "sender" (
 
 CREATE TABLE "receiver" (
   "id" SERIAL NOT NULL PRIMARY KEY,
+  "sender_id" INTEGER NOT NULL REFERENCES "sender" ON DELETE CASCADE,
   "name" TEXT NOT NULL,
   "peer_id" INTEGER NOT NULL
 );
 
 CREATE TABLE "regular_rule" (
   "id" SERIAL NOT NULL PRIMARY KEY,
-  "sender_id" INTEGER NOT NULL REFERENCES "sender" ON DELETE CASCADE,
   "receiver_id" INTEGER NOT NULL REFERENCES "receiver" ON DELETE CASCADE,
   "pool_template_id" INTEGER NOT NULL REFERENCES "poll_template" ON DELETE CASCADE,
   "cron_rule" TEXT NOT NULL
