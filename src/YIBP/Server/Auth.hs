@@ -36,6 +36,7 @@ import YIBP.Core.User qualified as C
 import YIBP.Db.Auth
 import YIBP.Db.User
 import YIBP.Db.Util
+import YIBP.Util
 
 newtype AuthData = AuthData {uid :: Int}
   deriving (Show, Eq, Generic)
@@ -116,18 +117,14 @@ loginHandler
 loginHandler req = do
   let password = mkPassword (req ^. #password)
   mb <- findUserByUsername (req ^. #username)
-  case mb of
-    Nothing -> throwError err403
-    Just (uid, hashedPassword) -> do
-      when (checkPassword password (PasswordHash (T.decodeUtf8 hashedPassword)) == PasswordCheckFail) $ do
-        throwError err403
-      randomUUID <- liftIO nextRandom
-      mtime <- insertRefreshToken randomUUID uid
-      case mtime of
-        Nothing -> throwError err403
-        Just time -> do
-          (cookie, t) <- genCookieAndJWT randomUUID uid time
-          pure $ addHeader cookie $ RefreshTokenResponse t
+  (uid, hashedPassword) <- whenNothing mb $ throwError err403
+  when (checkPassword password (PasswordHash (T.decodeUtf8 hashedPassword)) == PasswordCheckFail) $ do
+    throwError err403
+  randomUUID <- liftIO nextRandom
+  mtime <- insertRefreshToken randomUUID uid
+  time <- whenNothing mtime $ throwError err403
+  (cookie, t) <- genCookieAndJWT randomUUID uid time
+  pure $ addHeader cookie $ RefreshTokenResponse t
 
 refreshHandler
   :: ( MonadIO m
@@ -141,23 +138,14 @@ refreshHandler
   -> m (Headers '[Header "Set-Cookie" SetCookie] RefreshTokenResponse)
 refreshHandler (Just rawCookieText) = do
   let maybeRefreshToken = fromText . snd =<< find (\(key, _) -> key == "MyRefreshToken") (parseCookiesText $ T.encodeUtf8 rawCookieText)
-  case maybeRefreshToken of
-    Nothing -> throwError err403
-    Just token -> do
-      maybeCreatedAt <- getCreatedAtByRefreshToken token
-      case maybeCreatedAt of
-        Nothing -> throwError err403
-        Just createdAt -> do
-          currTime <- liftIO Time.getCurrentTime
-          when (Time.diffUTCTime currTime createdAt >= 60 * Time.nominalDay) $ do
-            throwError err403
-          randomUUID <- liftIO nextRandom
-          maybeNewCreatedAt <- updateRefreshToken token randomUUID
-          case maybeNewCreatedAt of
-            Nothing -> throwError err403
-            Just (newCreatedAt, uid) -> do
-              (cookie, t) <- genCookieAndJWT randomUUID uid newCreatedAt
-              pure $ addHeader cookie $ RefreshTokenResponse t
+  token <- whenNothing maybeRefreshToken $ throwError err403
+  createdAt <- getCreatedAtByRefreshToken token >>= flip whenNothing (throwError err403)
+  currTime <- liftIO Time.getCurrentTime
+  when (Time.diffUTCTime currTime createdAt >= 60 * Time.nominalDay) $ throwError err403
+  randomUUID <- liftIO nextRandom
+  (newCreatedAt, uid) <- updateRefreshToken token randomUUID >>= flip whenNothing (throwError err403)
+  (cookie, t) <- genCookieAndJWT randomUUID uid newCreatedAt
+  pure $ addHeader cookie $ RefreshTokenResponse t
 refreshHandler _ = throwError err403
 
 genCookieAndJWT
