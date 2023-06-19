@@ -71,6 +71,9 @@ library
         YIBP.Db.Util,
         YIBP.Db.User,
         YIBP.Db.Auth,
+        YIBP.Core.Poll,
+        YIBP.Core.Receiver,
+        YIBP.Core.Sender,
         YIBP.Core.User
 
     -- Modules included in this library but not exported.
