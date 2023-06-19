@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
-module YIBP.Core.Receiver where
+module YIBP.Core.Receiver (Receiver (..)) where
 
 import Data.Aeson
 import Data.Text qualified as T

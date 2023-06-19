@@ -2,7 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module YIBP.Server.Auth (AuthAPI (..), theAuthAPI) where
+module YIBP.Server.Auth (AuthAPI (..), theAuthAPI, AuthData (..), withAuth) where
 
 import Control.Monad.IO.Class
 
@@ -190,3 +190,7 @@ isAdmin
 isAdmin (Authenticated (AuthData uid)) = do
   fromMaybe False <$> isUserAdmin uid
 isAdmin _ = pure False
+
+withAuth :: (MonadError ServerError m) => AuthResult AuthData -> m a -> m a
+withAuth (Authenticated _) m = m
+withAuth _ _ = throwError err403
