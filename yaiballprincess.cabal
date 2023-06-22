@@ -69,10 +69,12 @@ library
         YIBP.Server.Auth,
         YIBP.Server.Sender,
         YIBP.Server.Receiver,
+        YIBP.Server.PollTemplate,
         YIBP.Server,
         YIBP.Db.Util,
         YIBP.Db.User,
         YIBP.Db.Auth,
+        YIBP.Db.PollTemplate,
         YIBP.Db.Sender,
         YIBP.Db.Receiver,
         YIBP.Core.Poll,
@@ -133,7 +135,8 @@ library
         optics-th,
         warp,
         jose,
-        uuid
+        uuid,
+        cron
 
     -- Directories containing source files.
     hs-source-dirs:   src

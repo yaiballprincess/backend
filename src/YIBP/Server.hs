@@ -13,11 +13,13 @@ import YIBP.Server.Auth (AuthAPI, theAuthAPI, AuthData, withAuth')
 import Control.Monad.Error.Class (MonadError)
 import YIBP.Server.Sender
 import YIBP.Server.Receiver
+import YIBP.Server.PollTemplate
 
 data API route = API
   { _auth :: route :- "api" :> "auth" :> NamedRoutes AuthAPI
   , _sender :: route :- Auth '[JWT] AuthData :> "api" :> "sender" :> NamedRoutes SenderAPI
   , _receiver :: route :- Auth '[JWT] AuthData :> "api" :> "receiver" :> NamedRoutes ReceiverAPI
+  , _pollTemplate :: route :- Auth '[JWT] AuthData :> "api" :> "poll" :> NamedRoutes PollTemplateAPI
   }  deriving (Generic)
 
 
@@ -27,4 +29,5 @@ theAPI =
     { _auth = theAuthAPI
     , _sender = flip withAuth' theSenderAPI
     , _receiver = flip withAuth' theReceiverAPI
+    , _pollTemplate = flip withAuth' thePollTemplateAPI
     }
