@@ -68,15 +68,20 @@ library
         YIBP.Config,
         YIBP.Server.Auth,
         YIBP.Server.Sender,
+        YIBP.Server.Receiver,
         YIBP.Server,
         YIBP.Db.Util,
         YIBP.Db.User,
         YIBP.Db.Auth,
         YIBP.Db.Sender,
+        YIBP.Db.Receiver,
         YIBP.Core.Poll,
         YIBP.Core.Receiver,
         YIBP.Core.Sender,
-        YIBP.Core.User
+        YIBP.Core.User,
+        YIBP.Util.WithId,
+        YIBP.VK.Client,
+        YIBP.VK.Types
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -101,6 +106,8 @@ library
     -- Other library packages from which modules are imported.
     build-depends:
         aeson,
+        deriving-aeson,
+        aeson-optics,
         async,
         base ^>=4.17.1.0,
         bytestring,

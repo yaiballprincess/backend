@@ -12,11 +12,12 @@ import YIBP.App
 import YIBP.Server.Auth (AuthAPI, theAuthAPI, AuthData, withAuth')
 import Control.Monad.Error.Class (MonadError)
 import YIBP.Server.Sender
-import Servant.Auth.Server
+import YIBP.Server.Receiver
 
 data API route = API
   { _auth :: route :- "api" :> "auth" :> NamedRoutes AuthAPI
   , _sender :: route :- Auth '[JWT] AuthData :> "api" :> "sender" :> NamedRoutes SenderAPI
+  , _receiver :: route :- Auth '[JWT] AuthData :> "api" :> "receiver" :> NamedRoutes ReceiverAPI
   }  deriving (Generic)
 
 
@@ -25,4 +26,5 @@ theAPI =
   API
     { _auth = theAuthAPI
     , _sender = flip withAuth' theSenderAPI
+    , _receiver = flip withAuth' theReceiverAPI
     }
