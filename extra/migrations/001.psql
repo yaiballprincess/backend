@@ -15,7 +15,7 @@ CREATE TABLE "poll_template" (
   "id" SERIAL NOT NULL PRIMARY KEY,
   "is_multiple" BOOL NOT NULL,
   "is_anonymous" BOOL NOT NULL,
-  "duration" INTERVAL
+  "duration" TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE "poll_option" (
