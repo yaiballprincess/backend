@@ -114,9 +114,9 @@ updateSenderSession _id payload =
       [TH.rowsAffectedStatement|
       UPDATE "sender"
       SET
-        "name" = ($2 :: text?) OR "name",
-        "access_token" = ($3 :: text?) OR "access_token",
-        "bot_access_token" = ($4 :: text?) OR "bot_access_token"
+        "name" = COALESCE(($2 :: text?), "name"),
+        "access_token" = COALESCE(($3 :: text?), "access_token"),
+        "bot_access_token" = COALESCE(($4 :: text?), "bot_access_token")
       WHERE 
         "id" = $1 :: int4 AND
         NOT EXISTS (SELECT 1 FROM "sender" WHERE "name" = ($2 :: text?))
