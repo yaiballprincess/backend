@@ -1,4 +1,11 @@
-module YIBP.Db.Sender (insertSender, getAllSenders, deleteSender, UpdateSenderPayload (..), updateSender) where
+module YIBP.Db.Sender
+  ( insertSender
+  , getAllSenders
+  , getSenderById
+  , deleteSender
+  , UpdateSenderPayload (..)
+  , updateSender
+  ) where
 
 import Data.Bifunctor
 import Data.Int
@@ -55,6 +62,20 @@ getAllSendersSession =
 
 getAllSenders :: (WithDb env m, HasCallStack) => m (V.Vector (Int, T.Text))
 getAllSenders = withConn (Session.run getAllSendersSession) >>= liftError
+
+getSenderById :: (WithDb env m, HasCallStack) => Int -> m (Maybe Sender)
+getSenderById sid = do
+  r <- withConn (Session.run (Session.statement (fromIntegral sid) stmt))
+  let ret = fmap (\(n, at_, bat) -> Sender {name = n, accessToken = at_, botAccessToken = bat}) <$> r
+  liftError ret
+  where
+    stmt :: Statement Int32 (Maybe (T.Text, T.Text, Maybe T.Text))
+    stmt =
+      [TH.maybeStatement|
+      select "name" :: text, "access_token" :: text, "bot_access_token" :: text?
+      from "sender"
+      where "id" = $1 :: int4
+    |]
 
 deleteSenderSession :: Int -> Session.Session Bool
 deleteSenderSession _id = (== 1) <$> Session.statement (fromIntegral _id) stmt
