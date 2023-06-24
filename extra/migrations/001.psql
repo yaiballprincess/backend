@@ -41,7 +41,7 @@ CREATE TABLE "receiver" (
 CREATE TABLE "regular_rule" (
   "id" SERIAL NOT NULL PRIMARY KEY,
   "receiver_id" INTEGER NOT NULL REFERENCES "receiver" ON DELETE CASCADE,
-  "pool_template_id" INTEGER NOT NULL REFERENCES "poll_template" ON DELETE CASCADE,
+  "poll_template_id" INTEGER NOT NULL REFERENCES "poll_template" ON DELETE CASCADE,
   "cron_rule" TEXT NOT NULL
 );
 
@@ -49,7 +49,7 @@ CREATE TABLE "exception_rule" (
   "id" SERIAL NOT NULL PRIMARY KEY,
   "regular_rule_id" INTEGER NOT NULL REFERENCES "regular_rule" ON DELETE CASCADE,
   "receiver_id" INTEGER NOT NULL REFERENCES "receiver" ON DELETE CASCADE,
-  "pool_template_id" INTEGER NOT NULL REFERENCES "poll_template" ON DELETE CASCADE,
+  "poll_template_id" INTEGER NOT NULL REFERENCES "poll_template" ON DELETE CASCADE,
   "send_at" TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
