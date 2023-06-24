@@ -11,6 +11,7 @@ module YIBP.VK.Types
   , VKGroupFull (..)
   , VKConversationWithMessage (..)
   , VKMessagesGetConversationsResponse (..)
+  , VKPoll (..)
   ) where
 
 import Data.Aeson
@@ -24,10 +25,12 @@ import Optics
 data VKUserFull = VKUserFull
   { _firstName :: !(Maybe T.Text)
   , _lastName :: !(Maybe T.Text)
-  , _id  :: !Int
-  } deriving (Eq, Show, Generic)
-  deriving (FromJSON, ToJSON)
-  via CustomJSON '[OmitNothingFields, FieldLabelModifier '[StripPrefix "_", CamelToSnake]] VKUserFull
+  , _id :: !Int
+  }
+  deriving (Eq, Show, Generic)
+  deriving
+    (FromJSON, ToJSON)
+    via CustomJSON '[OmitNothingFields, FieldLabelModifier '[StripPrefix "_", CamelToSnake]] VKUserFull
 
 makeFields ''VKUserFull
 
@@ -35,9 +38,11 @@ data VKGroupFull = VKGroupFull
   { _id :: !Int
   , _name :: !(Maybe T.Text)
   , _screenName :: !(Maybe T.Text)
-  } deriving (Eq, Show, Generic)
-  deriving (FromJSON, ToJSON)
-  via CustomJSON '[OmitNothingFields, FieldLabelModifier '[StripPrefix "_", CamelToSnake]] VKGroupFull
+  }
+  deriving (Eq, Show, Generic)
+  deriving
+    (FromJSON, ToJSON)
+    via CustomJSON '[OmitNothingFields, FieldLabelModifier '[StripPrefix "_", CamelToSnake]] VKGroupFull
 
 data VKConversationPeerType
   = VKConversationPeerChat
@@ -119,3 +124,11 @@ data VKMessagesGetConversationsResponse = VKMessagesGetConversationsResponse
 
 makeFieldsNoPrefix ''VKMessagesGetConversationsResponse
 
+data VKPoll = VKPoll
+  { _id :: !Int
+  , _ownerId :: !Int
+  }
+  deriving (Eq, Show, Generic)
+  deriving
+    (FromJSON, ToJSON)
+    via CustomJSON '[FieldLabelModifier '[StripPrefix "_", CamelToSnake]] VKPoll
