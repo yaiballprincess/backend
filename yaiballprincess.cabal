@@ -63,7 +63,10 @@ library
 
     -- Modules exported by the library.
     exposed-modules:  
-        MyLib,
+        MyLib
+
+    -- Modules included in this library but not exported.
+    other-modules:
         YIBP.App,
         YIBP.Config,
         YIBP.Server.Auth,
@@ -76,6 +79,7 @@ library
         YIBP.Db.Auth,
         YIBP.Db.PollTemplate,
         YIBP.Db.Sender,
+        YIBP.Db.Rule,
         YIBP.Db.Receiver,
         YIBP.Core.Poll,
         YIBP.Core.Receiver,
@@ -83,10 +87,9 @@ library
         YIBP.Core.User,
         YIBP.Util.WithId,
         YIBP.VK.Client,
-        YIBP.VK.Types
-
-    -- Modules included in this library but not exported.
-    -- other-modules:
+        YIBP.VK.Types,
+        YIBP.Scheduler.Scheduler,
+        YIBP.Scheduler.Util
 
     -- LANGUAGE extensions used by modules in this package.
     default-extensions:
@@ -103,6 +106,7 @@ library
         DuplicateRecordFields,
         NoFieldSelectors,
         UndecidableInstances,
+        ImplicitParams,
         OverloadedLabels
 
     -- Other library packages from which modules are imported.
@@ -136,7 +140,10 @@ library
         warp,
         jose,
         uuid,
-        cron
+        cron,
+        unliftio,
+        unliftio-core,
+        random
 
     -- Directories containing source files.
     hs-source-dirs:   src
