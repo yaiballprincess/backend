@@ -9,14 +9,18 @@ module YIBP.Db.PollTemplate
   , deletePollTemplateOption
   , getAll
   , PollTemplateGet (..)
+  , getPollTemplatesByIds
   ) where
 
 import Hasql.Session qualified as Session
 import Hasql.Statement
 import Hasql.TH qualified as TH
+import YIBP.Core.Poll qualified as Core
 import YIBP.Db.Util
 
 import Data.Int
+import Data.IntMap.Strict (IntMap)
+import Data.IntMap.Strict qualified as IntMap
 import Data.Text qualified as T
 import Data.Time
 import Data.Vector qualified as V
@@ -178,4 +182,37 @@ getAll = do
         from "poll_template"
         right join "poll_option" o ON o.poll_template_id = poll_template.id
         group by poll_template.id
+      |]
+
+getPollTemplatesByIds :: (WithDb env m, HasCallStack) => V.Vector Int -> m (IntMap Core.PollTemplate)
+getPollTemplatesByIds ids = do
+  vec <- withConn' (Session.run (Session.statement (V.map fromIntegral ids) stmt))
+  pure $
+    IntMap.fromList $
+      V.toList $
+        V.map
+          ( \(i, isMultiple, isAnonymous, duration, options) ->
+              ( fromIntegral i
+              , Core.PollTemplate
+                  { isMultiple = isMultiple
+                  , isAnonymous = isAnonymous
+                  , endsAt = duration
+                  , options = options
+                  }
+              )
+          ) vec
+  where
+    stmt :: Statement (V.Vector Int32) (V.Vector (Int32, Bool, Bool, Maybe UTCTime, V.Vector T.Text))
+    stmt =
+      [TH.vectorStatement|
+        select
+            poll_template.id :: int4,
+            "is_multiple" :: bool, 
+            "is_anonymous" :: bool,
+            "duration" :: TIMESTAMPTZ?,
+            array_agg(o.data) :: text[]
+          from "poll_template"
+          right join "poll_option" o ON o.poll_template_id = poll_template.id
+          where poll_template.id = ANY($1 :: int4[])
+          group by poll_template.id
       |]

@@ -1,6 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DeriveAnyClass #-}
-module YIBP.Db.Util (WithDb, withConn, liftError) where
+module YIBP.Db.Util (WithDb, withConn, withConn', liftError) where
 
 import Control.Exception
 import Control.Monad.Reader
@@ -28,3 +28,9 @@ withConn f = do
 
 liftError :: (HasCallStack, MonadIO m) => Either Session.QueryError a -> m a
 liftError = either (liftIO . throwIO) pure
+
+withConn'
+  :: WithDb env m
+  => (Connection -> IO (Either Session.QueryError a))
+  -> m a
+withConn' f = withConn f >>= liftError 

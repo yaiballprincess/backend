@@ -1,7 +1,9 @@
-module YIBP.Db.Receiver (insertReceiver, deleteReceiver, getAllReceivers) where
+module YIBP.Db.Receiver (getReceiversWithSendersByIds, insertReceiver, deleteReceiver, getAllReceivers) where
 
 import Data.Bifunctor
 import Data.Int
+import Data.IntMap.Strict (IntMap)
+import Data.IntMap.Strict qualified as IntMap
 import Data.Text qualified as T
 import Data.Vector qualified as V
 
@@ -16,6 +18,7 @@ import YIBP.Core.Receiver
 
 import GHC.Generics (Generic)
 import Optics
+import YIBP.Core.Sender
 
 insertReceiver :: (WithDb env m, HasCallStack) => Int -> Receiver -> m (Maybe Int)
 insertReceiver senderId receiver = do
@@ -65,4 +68,37 @@ getAllReceivers = do
       [TH.vectorStatement|
     select "id" :: int4, "name" :: text, "peer_id" :: int4
     from "receiver"
+    |]
+
+getReceiversWithSendersByIds :: (WithDb env m, HasCallStack) => V.Vector Int -> m (IntMap (Receiver, Sender))
+getReceiversWithSendersByIds ids = do
+  vec <- withConn' (Session.run (Session.statement (V.map fromIntegral ids) stmt))
+  pure $
+    IntMap.fromList $
+      V.toList $
+        V.map
+            ( \(i, rName, peerId, sName, accessToken, botAccessToken) ->
+                ( fromIntegral i
+                ,
+                  ( Receiver
+                      { name = rName
+                      , peerId = fromIntegral peerId
+                      }
+                  , Sender
+                      { name = sName
+                      , accessToken = accessToken
+                      , botAccessToken = botAccessToken
+                      }
+                  )
+                )
+            )
+            vec
+  where
+    stmt :: Statement (V.Vector Int32) (V.Vector (Int32, T.Text, Int32, T.Text, T.Text, Maybe T.Text))
+    stmt =
+      [TH.vectorStatement|
+      select r.id :: int4, r.name :: text, r.peer_id :: int4, s.name :: text, s.access_token :: text, s.bot_access_token :: text?
+      from "receiver" as r
+      inner join "sender" s ON s.id = r.sender_id
+      where r.id = ANY($1 :: int4[])
     |]

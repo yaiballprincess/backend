@@ -1,10 +1,4 @@
-module YIBP.Scheduler.Util
-  ( MyCronSchedule (..)
-  , parseMyCronSchedule
-  , nextMatch
-  , scheduleMatches
-  ) where
-
+module YIBP.Scheduler.Util where
 import System.Cron qualified as Cron
 import System.Cron.Parser qualified as Cron
 import System.Cron.Types qualified as Cron
@@ -33,3 +27,6 @@ nextMatch (MyCronSchedule s) = Cron.nextMatch s
 
 scheduleMatches :: MyCronSchedule -> UTCTime -> Bool
 scheduleMatches (MyCronSchedule s) = Cron.scheduleMatches s
+
+serializeCronSchedule :: MyCronSchedule -> T.Text
+serializeCronSchedule (MyCronSchedule x) = Cron.serializeCronSchedule x

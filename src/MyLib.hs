@@ -16,12 +16,19 @@ import Optics
 import Servant.Auth.Server (defaultCookieSettings, defaultJWTSettings)
 import YIBP.App
 import YIBP.Config (parseConfig)
+import YIBP.Db.Receiver
 import YIBP.Server
+import YIBP.Scheduler.Scheduler
 import Servant.Auth.Server.Internal.AddSetCookie
 import GHC.Generics
+import Data.Vector qualified as V
+import Control.Concurrent
 
 nt :: Env -> AppT Handler a -> Handler a
 nt e x = runReaderT x e
+
+withScheduler :: Scheduler -> (WithScheduler => IO a) -> IO a
+withScheduler sc a = let ?scheduler = sc in a
 
 runApp :: IO ()
 runApp = do
@@ -35,9 +42,13 @@ runApp = do
           (encodeUtf8 (dbConf ^. #password))
           (encodeUtf8 (dbConf ^. #db))
   Right conn <- Connection.acquire connSettings
+  scheduler <- mkScheduler
   let env = Env {dbConnection = conn, jwk = config ^. #jwk, appConfig = config}
-  run 8080 $
-    genericServeTWithContext
-      (nt env)
-      theAPI
-      (defaultJWTSettings (config ^. #jwk) :. defaultCookieSettings :. EmptyContext)
+  withScheduler scheduler $ do
+    _ <- forkIO $ do
+      runReaderT (runScheduler scheduler) env
+    run 8080 $
+      genericServeTWithContext
+        (nt env)
+        theAPI
+        (defaultJWTSettings (config ^. #jwk) :. defaultCookieSettings :. EmptyContext)

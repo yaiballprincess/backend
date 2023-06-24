@@ -14,20 +14,24 @@ import Control.Monad.Error.Class (MonadError)
 import YIBP.Server.Sender
 import YIBP.Server.Receiver
 import YIBP.Server.PollTemplate
+import YIBP.Server.Rule
+import YIBP.Scheduler.Scheduler
 
 data API route = API
   { _auth :: route :- "api" :> "auth" :> NamedRoutes AuthAPI
   , _sender :: route :- Auth '[JWT] AuthData :> "api" :> "sender" :> NamedRoutes SenderAPI
   , _receiver :: route :- Auth '[JWT] AuthData :> "api" :> "receiver" :> NamedRoutes ReceiverAPI
   , _pollTemplate :: route :- Auth '[JWT] AuthData :> "api" :> "poll" :> NamedRoutes PollTemplateAPI
+  , _rule :: route :- Auth '[JWT] AuthData :> "api" :> "rule" :> NamedRoutes RuleAPI
   }  deriving (Generic)
 
 
-theAPI :: (MonadIO m, MonadError ServerError m) => API (AsServerT (AppT m))
+theAPI :: (MonadIO m, MonadError ServerError m, WithScheduler) => API (AsServerT (AppT m))
 theAPI =
   API
     { _auth = theAuthAPI
     , _sender = flip withAuth' theSenderAPI
     , _receiver = flip withAuth' theReceiverAPI
     , _pollTemplate = flip withAuth' thePollTemplateAPI
+    , _rule = flip withAuth' theRuleAPI
     }
