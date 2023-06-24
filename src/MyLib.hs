@@ -47,6 +47,8 @@ runApp = do
   withScheduler scheduler $ do
     _ <- forkIO $ do
       runReaderT (runScheduler scheduler) env
+    _ <- forkIO $ do
+      runReaderT initScheduler env
     run 8080 $
       genericServeTWithContext
         (nt env)

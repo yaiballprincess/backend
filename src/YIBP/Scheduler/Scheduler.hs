@@ -13,6 +13,7 @@ module YIBP.Scheduler.Scheduler
   , addExceptionRule
   , editExceptionRule
   , removeExceptionRule
+  , initScheduler
   ) where
 
 import Data.Aeson qualified as J
@@ -61,6 +62,7 @@ import YIBP.Core.Receiver
 import YIBP.Core.Sender
 import YIBP.Db.PollTemplate
 import YIBP.Db.Receiver
+import YIBP.Db.Rule
 import YIBP.Db.Util
 import YIBP.VK.Client
 import YIBP.VK.Types
@@ -82,7 +84,7 @@ newtype Scheduler = Scheduler (TQueue SchedulerRuleEvent)
 
 type WithScheduler = (?scheduler :: Scheduler)
 
-withSchedulerM :: WithScheduler => (Scheduler -> m a) -> m a
+withSchedulerM :: (WithScheduler) => (Scheduler -> m a) -> m a
 withSchedulerM f = f ?scheduler
 
 mkScheduler :: IO Scheduler
@@ -272,3 +274,12 @@ messagesSendMessage client peerId attachments = do
     >>= \case
       Left _ -> error "error while execution of messages.send method"
       Right _ -> pure ()
+
+initScheduler :: (WithDb env m, MonadIO m, WithScheduler) => m ()
+initScheduler = do
+  rules <- getAllRules
+  exceptions <- getAllExceptionRules
+  V.forM_ rules $ \(rid, rule) -> do
+    withSchedulerM $ \sch -> liftIO $ addRegularRule sch rid rule
+  V.forM_ exceptions $ \(rid, rule) -> do
+    withSchedulerM $ \sch -> liftIO $ addExceptionRule sch rid rule
