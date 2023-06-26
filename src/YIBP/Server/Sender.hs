@@ -42,7 +42,7 @@ data AllSenderUnitResponse = AllSenderUnitResponse
 makeFieldsNoPrefix ''AllSenderUnitResponse
 
 data SenderAPI route = SenderAPI
-  { _add :: route :- "add" :> ReqBody '[JSON] Sender :> Post '[JSON] NoContent
+  { _add :: route :- "add" :> ReqBody '[JSON] Sender :> Post '[JSON] Int
   , _all :: route :- "all" :> Get '[JSON] (V.Vector AllSenderUnitResponse)
   , _remove :: route :- "remove" :> ReqBody '[JSON] Int :> Delete '[JSON] NoContent
   , _edit :: route :- "edit" :> ReqBody '[JSON] EditSenderRequest :> Post '[JSON] NoContent
@@ -58,11 +58,10 @@ theSenderAPI =
     , _edit = editHandler
     }
 
-addHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => Sender -> m NoContent
+addHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => Sender -> m Int
 addHandler req = do
-  _id <- insertSender req
-  case _id of
-    Just _ -> pure NoContent
+  insertSender req >>= \case
+    Just _id -> pure _id
     Nothing -> throwError err400
 
 allHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => m (V.Vector AllSenderUnitResponse)

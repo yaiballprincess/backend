@@ -55,7 +55,7 @@ extra-doc-files:    CHANGELOG.md
 -- extra-source-files:
 
 common warnings
-    ghc-options: -Wall
+    ghc-options: -Wall -threaded
 
 library
     -- Import common warning flags.
@@ -72,6 +72,7 @@ library
         YIBP.Server.Auth,
         YIBP.Server.Sender,
         YIBP.Server.Receiver,
+        YIBP.Server.Rule,
         YIBP.Server.PollTemplate,
         YIBP.Server,
         YIBP.Db.Util,
@@ -82,6 +83,7 @@ library
         YIBP.Db.Rule,
         YIBP.Db.Receiver,
         YIBP.Core.Poll,
+        YIBP.Core.Rule,
         YIBP.Core.Receiver,
         YIBP.Core.Sender,
         YIBP.Core.User,
@@ -107,7 +109,8 @@ library
         NoFieldSelectors,
         UndecidableInstances,
         ImplicitParams,
-        OverloadedLabels
+        OverloadedLabels,
+        OverloadedRecordDot
 
     -- Other library packages from which modules are imported.
     build-depends:

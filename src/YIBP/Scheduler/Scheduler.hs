@@ -153,12 +153,22 @@ runScheduler' queue = loop
                   )
                   nextTimeMap
           loop nextTimeMap' rulesMap exceptionsMap
-        Just (AddRegularRuleEvent rid rule) ->
-          loop nextTimeMap (Map.insert rid rule rulesMap) exceptionsMap
-        Just (EditRegularRuleEvent rid rule) ->
-          loop nextTimeMap (Map.insert rid rule rulesMap) exceptionsMap
+        Just (AddRegularRuleEvent rid rule) -> do
+          timeNow <- liftIO getCurrentTime
+          tz <- liftIO getCurrentTimeZone
+          loop
+            (Map.insert rid (getNextTime (rule ^. #cronRule) timeNow tz) nextTimeMap)
+            (Map.insert rid rule rulesMap)
+            exceptionsMap
+        Just (EditRegularRuleEvent rid rule) -> do
+          timeNow <- liftIO getCurrentTime
+          tz <- liftIO getCurrentTimeZone
+          loop
+            (Map.insert rid (getNextTime (rule ^. #cronRule) timeNow tz) nextTimeMap)
+            (Map.insert rid rule rulesMap)
+            exceptionsMap
         Just (RemoveRegularRuleEvent rid) ->
-          loop nextTimeMap (Map.delete rid rulesMap) exceptionsMap
+          loop (Map.delete rid nextTimeMap) (Map.delete rid rulesMap) exceptionsMap
         Just (AddExceptionRuleEvent rid rule) ->
           loop nextTimeMap rulesMap (Map.insert rid rule exceptionsMap)
         Just (EditExceptionRuleEvent rid rule) ->

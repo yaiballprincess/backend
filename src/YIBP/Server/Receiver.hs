@@ -47,7 +47,7 @@ type SenderId = Int
 makeFieldsNoPrefix ''AddRequest
 
 data ReceiverAPI route = ReceiverAPI
-  { _add :: route :- "add" :> ReqBody '[JSON] AddRequest :> Post '[JSON] NoContent
+  { _add :: route :- "add" :> ReqBody '[JSON] AddRequest :> Post '[JSON] ReceiverId
   , _getConversations :: route :- "get-conversations" :> ReqBody '[JSON] SenderId :> Get '[JSON] (V.Vector Receiver)
   , _remove :: route :- "remove" :> ReqBody '[JSON] ReceiverId :> Delete '[JSON] NoContent
   , _getAll :: route :- "get-all" :> Get '[JSON] (V.Vector (WithId Receiver))
@@ -63,11 +63,10 @@ theReceiverAPI =
     , _getAll = getAllHandler
     }
 
-addHandler :: (MonadIO m, WithDb env m, MonadError ServerError m) => AddRequest -> m NoContent
+addHandler :: (MonadIO m, WithDb env m, MonadError ServerError m) => AddRequest -> m ReceiverId
 addHandler req = do
-  mNewId <- insertReceiver (req ^. #senderId) (req ^. #receiver)
-  case mNewId of
-    Just _ -> pure NoContent
+  insertReceiver (req ^. #senderId) (req ^. #receiver) >>= \case
+    Just _id -> pure _id
     Nothing -> throwError err422
 
 convert :: VKMessagesGetConversationsResponse -> V.Vector Receiver

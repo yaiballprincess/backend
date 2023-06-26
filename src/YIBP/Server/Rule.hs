@@ -20,12 +20,12 @@ import GHC.Generics
 import Optics
 import YIBP.Core.Poll (PollTemplate)
 import YIBP.Core.Receiver
-import YIBP.Core.Sender
-import YIBP.Db.Util
-import YIBP.Util.WithId
-import YIBP.Scheduler.Scheduler
 import YIBP.Core.Rule
+import YIBP.Core.Sender
 import YIBP.Db.Rule
+import YIBP.Db.Util
+import YIBP.Scheduler.Scheduler
+import YIBP.Util.WithId
 
 data AddRegularRuleRequest = AddRegularRuleRequest
   { receiverId :: !Int
@@ -69,7 +69,7 @@ data GetRegularRuleResponseUnit = GetRegularRuleResponseUnit
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 data GetExceptionRuleResponseUnit = GetExceptionRuleResponseUnit
-  { exceptionRuleId :: !Int
+  { id :: !Int
   , regularRuleId :: !Int
   , receiver :: !(WithId Receiver)
   , sender :: !(WithId T.Text)
@@ -108,29 +108,91 @@ theRuleAPI =
 
 addRegularHandler :: (MonadIO m, MonadError ServerError m, WithDb env m, WithScheduler) => AddRegularRuleRequest -> m RegularRuleId
 addRegularHandler req = do
-  let rule = RegularRule { receiverId = req ^. #receiverId, pollTemplateId = req ^. #pollTemplateId, cronRule = req ^. #cronRule }
+  let rule = RegularRule {receiverId = req ^. #receiverId, pollTemplateId = req ^. #pollTemplateId, cronRule = req ^. #cronRule}
   rid <- insertRule rule
   _ <- liftIO $ withSchedulerM $ \sch -> do
     addRegularRule sch rid rule
   pure rid
 
-addExceptionHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => AddExceptionRuleRequest -> m ExceptionRuleId
-addExceptionHandler = undefined
+addExceptionHandler :: (MonadIO m, MonadError ServerError m, WithDb env m, WithScheduler) => AddExceptionRuleRequest -> m ExceptionRuleId
+addExceptionHandler req = do
+  let rule = ExceptionRule {regularRuleId = req ^. #regularRuleId, receiverId = req ^. #receiverId, pollTemplateId = req ^. #pollTemplateId, sendAt = req ^. #sendAt}
+  regularRule <- getRuleById req.regularRuleId
+  tz <- liftIO getCurrentTimeZone
+  unless (scheduleMatches regularRule.cronRule (localTimeToUTC utc (utcToLocalTime tz rule.sendAt))) $ do
+    throwError err422
+  rid <- insertExceptionRule rule
+  _ <- liftIO $ withSchedulerM $ \sch -> do
+    addExceptionRule sch rid rule
+  pure rid
 
-editRegularHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => EditRegularRuleRequest -> m NoContent
-editRegularHandler = undefined
+editRegularHandler :: (MonadIO m, MonadError ServerError m, WithDb env m, WithScheduler) => EditRegularRuleRequest -> m NoContent
+editRegularHandler req = do
+  let rule = UpdateRegularRule {ruleId = req.ruleId, receiverId = req.receiverId, pollTemplateId = req.pollTemplateId, cronRule = req.cronRule}
+  updateRegularRule rule >>= \case
+    Just regularRule -> do
+      _ <- liftIO $ withSchedulerM $ \sch -> do
+        editRegularRule sch req.ruleId regularRule
+      pure NoContent
+    Nothing -> throwError err422
 
-editExceptionHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => EditExceptionRuleRequest -> m NoContent
-editExceptionHandler = undefined
+editExceptionHandler :: (MonadIO m, MonadError ServerError m, WithDb env m, WithScheduler) => EditExceptionRuleRequest -> m NoContent
+editExceptionHandler req = do
+  let rule = UpdateExceptionRule {exceptionRuleId = req.exceptionRuleId, regularRuleId = req.regularRuleId, receiverId = req.receiverId, pollTemplateId = req.pollTemplateId, sendAt = req.sendAt}
+  regularRule <- getRegularRuleByExceptionId req.exceptionRuleId
+  _ <- case req.sendAt of
+    Just sendAt -> do
+      tz <- liftIO getCurrentTimeZone
+      unless (scheduleMatches regularRule.cronRule (localTimeToUTC utc (utcToLocalTime tz sendAt))) $ do
+        throwError err422
+      undefined
+    Nothing -> pure ()
+  updateExceptionRule rule >>= \case
+    Just exceptionRule -> do
+      _ <- liftIO $ withSchedulerM $ \sch -> do
+        editExceptionRule sch req.exceptionRuleId exceptionRule
+      pure NoContent
+    Nothing -> throwError err422
 
-removeRegularHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => RegularRuleId -> m NoContent
-removeRegularHandler = undefined
+removeRegularHandler :: (MonadIO m, MonadError ServerError m, WithDb env m, WithScheduler) => RegularRuleId -> m NoContent
+removeRegularHandler _id = do
+  _ <- deleteRegularRule _id
+  _ <- liftIO $ withSchedulerM $ \sch -> do
+    removeRegularRule sch _id
+  pure NoContent
 
-removeExceptionHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => ExceptionRuleId -> m NoContent
-removeExceptionHandler = undefined
+removeExceptionHandler :: (MonadIO m, MonadError ServerError m, WithDb env m, WithScheduler) => ExceptionRuleId -> m NoContent
+removeExceptionHandler _id = do
+  _ <- deleteExceptionRule _id
+  _ <- liftIO $ withSchedulerM $ \sch -> do
+    removeExceptionRule sch _id
+  pure NoContent
 
 getRulesHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => m (V.Vector GetRegularRuleResponseUnit)
-getRulesHandler = undefined
+getRulesHandler = do
+  V.map
+    ( \(i, rule) ->
+        GetRegularRuleResponseUnit
+          { ruleId = i
+          , receiver = uncurry WithId rule.receiver
+          , sender = uncurry WithId rule.sender
+          , pollTemplate = uncurry WithId rule.pollTemplate
+          , cronRule = rule.cronRule
+          }
+    )
+    <$> getAllRulesDetailed
 
 getExceptionRulesHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => m (V.Vector GetExceptionRuleResponseUnit)
-getExceptionRulesHandler = undefined
+getExceptionRulesHandler = do
+  V.map
+    ( \(i, rule) ->
+        GetExceptionRuleResponseUnit
+          { id = i
+          , regularRuleId = rule.regularRuleId
+          , receiver = uncurry WithId rule.receiver
+          , sender = uncurry WithId rule.sender
+          , pollTemplate = uncurry WithId rule.pollTemplate
+          , sendAt = rule.sendAt
+          }
+    )
+    <$> getAllExceptionRulesDetailed
