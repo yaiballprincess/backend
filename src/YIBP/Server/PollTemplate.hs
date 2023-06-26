@@ -21,7 +21,7 @@ import Optics
 
 import Control.Monad.Except
 import Deriving.Aeson
-import YIBP.Db.Util
+import YIBP.Db.Db
 
 data PollTemplateAddRequest = PollTemplateAddRequest
   { isMultiple :: !Bool
@@ -75,7 +75,7 @@ data PollTemplateAPI route = PollTemplateAPI
   }
   deriving (Generic)
 
-thePollTemplateAPI :: (MonadIO m, MonadError ServerError m) => PollTemplateAPI (AsServerT (AppT m))
+thePollTemplateAPI :: (WithDb) => PollTemplateAPI (AsServerT Handler)
 thePollTemplateAPI =
   PollTemplateAPI
     { _add = addHandler
@@ -88,75 +88,79 @@ thePollTemplateAPI =
     }
 
 addHandler
-  :: (MonadIO m, MonadError ServerError m, WithDb env m)
+  :: WithDb
   => PollTemplateAddRequest
-  -> m PollTemplateId
+  -> Handler PollTemplateId
 addHandler req = do
-  insertPollTemplate
+  liftIO (insertPollTemplate
     PollTemplate
       { isMultiple = req ^. #isMultiple
       , isAnonymous = req ^. #isAnonymous
       , endsAt = req ^. #endsAt
-      }
+      })
     >>= \case
       Nothing -> throwError err422
       Just x -> pure x
 
 addOptionHandler
-  :: (MonadIO m, MonadError ServerError m, WithDb env m)
+  :: WithDb
   => PollTemplateAddOptionRequest
-  -> m PollTemplateOptionId
+  -> Handler PollTemplateOptionId
 addOptionHandler req = do
-  insertPollTemplateOption (req ^. #pollTemplateId) (req ^. #text) >>= \case
+  liftIO (insertPollTemplateOption (req ^. #pollTemplateId) (req ^. #text)) >>= \case
     Nothing -> throwError err422
     Just x -> pure x
 
-editHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => PollTemplateEditRequest -> m NoContent
+editHandler :: (WithDb) => PollTemplateEditRequest -> Handler NoContent
 editHandler req = do
-  updatePollTemplate
-    PollTemplateUpdate
-      { pollTemplateId = req ^. #pollTemplateId
-      , isMultiple = req ^. #isMultiple
-      , isAnonymous = req ^. #isAnonymous
-      , endsAt = req ^. #endsAt
-      }
+  liftIO
+    ( updatePollTemplate
+        PollTemplateUpdate
+          { pollTemplateId = req ^. #pollTemplateId
+          , isMultiple = req ^. #isMultiple
+          , isAnonymous = req ^. #isAnonymous
+          , endsAt = req ^. #endsAt
+          }
+    )
     >>= \case
       True -> pure NoContent
       False -> throwError err422
 
 editOptionHandler
-  :: (MonadIO m, MonadError ServerError m, WithDb env m)
+  :: (WithDb)
   => PollTemplateEditOptionRequest
-  -> m NoContent
+  -> Handler NoContent
 editOptionHandler req = do
-  updatePollTemplateOption
-    (req ^. #pollTemplateOptionId)
-    (req ^. #text)
+  liftIO
+    ( updatePollTemplateOption
+        (req ^. #pollTemplateOptionId)
+        (req ^. #text)
+    )
     >>= \case
       True -> pure NoContent
       False -> throwError err422
 
 removeHandler
-  :: (MonadIO m, MonadError ServerError m, WithDb env m)
+  :: (WithDb)
   => PollTemplateId
-  -> m NoContent
+  -> Handler NoContent
 removeHandler _id = do
-  deletePollTemplate _id >>= \case
+  liftIO (deletePollTemplate _id) >>= \case
     True -> pure NoContent
     False -> throwError err422
 
 removeOptionHandler
-  :: (MonadIO m, MonadError ServerError m, WithDb env m)
+  :: (WithDb)
   => PollTemplateOptionId
-  -> m NoContent
+  -> Handler NoContent
 removeOptionHandler _id = do
-  deletePollTemplateOption _id >>= \case
+  liftIO (deletePollTemplateOption _id) >>= \case
     True -> pure NoContent
     False -> throwError err422
 
 getHandler
-  :: (MonadIO m, MonadError ServerError m, WithDb env m)
-  => m (V.Vector PollTemplateGetResponse)
+  :: (WithDb)
+  => Handler (V.Vector PollTemplateGetResponse)
 getHandler = do
   V.map
     ( \(i, g) ->
@@ -168,4 +172,4 @@ getHandler = do
           , options = V.map (uncurry WithId) (g ^. #options)
           }
     )
-    <$> getAll
+    <$> liftIO getAll

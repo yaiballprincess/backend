@@ -12,7 +12,7 @@ import GHC.Stack (HasCallStack)
 import Hasql.Session qualified as Session
 import Hasql.Statement
 import Hasql.TH qualified as TH
-import YIBP.Db.Util
+import YIBP.Db.Db
 
 import YIBP.Core.Receiver
 
@@ -20,10 +20,10 @@ import GHC.Generics (Generic)
 import Optics
 import YIBP.Core.Sender
 
-insertReceiver :: (WithDb env m, HasCallStack) => Int -> Receiver -> m (Maybe Int)
+insertReceiver :: (WithDb, HasCallStack) => Int -> Receiver -> IO (Maybe Int)
 insertReceiver senderId receiver = do
   r <-
-    withConn $
+    withConnEither $
       Session.run
         ( Session.statement
             ( fromIntegral senderId
@@ -44,10 +44,10 @@ insertReceiver senderId receiver = do
       returning ("id" :: int4)
     |]
 
-deleteReceiver :: (WithDb env m, HasCallStack) => Int -> m Bool
+deleteReceiver :: (WithDb, HasCallStack) => Int -> IO Bool
 deleteReceiver receiverId = do
   r <- withConn $ Session.run (Session.statement (fromIntegral receiverId) stmt)
-  liftError (fmap (== 1) r)
+  pure $ r == 1
   where
     stmt :: Statement Int32 Int64
     stmt =
@@ -55,9 +55,9 @@ deleteReceiver receiverId = do
     delete from "receiver" where "id" = $1 :: int4
     |]
 
-getAllReceivers :: (WithDb env m, HasCallStack) => m (V.Vector (Int, Receiver))
+getAllReceivers :: (WithDb, HasCallStack) => IO (V.Vector (Int, Receiver))
 getAllReceivers = do
-  vec <- withConn (Session.run (Session.statement () stmt)) >>= liftError
+  vec <- withConn (Session.run (Session.statement () stmt))
   pure $
     V.map
       (\(idx, name, peerId) -> (fromIntegral idx, Receiver {name = name, peerId = fromIntegral peerId}))
@@ -70,9 +70,9 @@ getAllReceivers = do
     from "receiver"
     |]
 
-getReceiversWithSendersByIds :: (WithDb env m, HasCallStack) => V.Vector Int -> m (IntMap (Receiver, Sender))
+getReceiversWithSendersByIds :: (WithDb, HasCallStack) => V.Vector Int -> IO (IntMap (Receiver, Sender))
 getReceiversWithSendersByIds ids = do
-  vec <- withConn' (Session.run (Session.statement (V.map fromIntegral ids) stmt))
+  vec <- withConn (Session.run (Session.statement (V.map fromIntegral ids) stmt))
   pure $
     IntMap.fromList $
       V.toList $

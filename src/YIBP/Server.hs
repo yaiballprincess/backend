@@ -16,6 +16,8 @@ import YIBP.Server.Receiver
 import YIBP.Server.PollTemplate
 import YIBP.Server.Rule
 import YIBP.Scheduler.Scheduler
+import YIBP.Config
+import YIBP.Db.Db
 
 data API route = API
   { _auth :: route :- "api" :> "auth" :> NamedRoutes AuthAPI
@@ -26,7 +28,7 @@ data API route = API
   }  deriving (Generic)
 
 
-theAPI :: (MonadIO m, MonadError ServerError m, WithScheduler) => API (AsServerT (AppT m))
+theAPI :: (WithScheduler, WithDb, WithConfig) => API (AsServerT Handler)
 theAPI =
   API
     { _auth = theAuthAPI

@@ -11,7 +11,7 @@ import Hasql.Session qualified as Session
 import Hasql.Statement
 import Hasql.TH qualified as TH
 
-import YIBP.Db.Util
+import YIBP.Db.Db
 
 insertRefreshTokenSession :: UUID -> Int -> Session.Session (Maybe Time.UTCTime)
 insertRefreshTokenSession uuid ownerId = Session.statement (uuid, fromIntegral ownerId) stmt
@@ -26,13 +26,12 @@ insertRefreshTokenSession uuid ownerId = Session.statement (uuid, fromIntegral o
     |]
 
 insertRefreshToken
-  :: (WithDb env m, HasCallStack)
+  :: (WithDb, HasCallStack)
   => UUID
   -> Int
-  -> m (Maybe Time.UTCTime)
+  -> IO (Maybe Time.UTCTime)
 insertRefreshToken uuid ownerId = do
-  r <- withConn $ Session.run (insertRefreshTokenSession uuid ownerId)
-  liftError r
+  withConn $ Session.run (insertRefreshTokenSession uuid ownerId)
 
 getCreatedAtByRefreshTokenSession :: UUID -> Session.Session (Maybe Time.UTCTime)
 getCreatedAtByRefreshTokenSession uuid = Session.statement uuid stmt
@@ -45,12 +44,11 @@ getCreatedAtByRefreshTokenSession uuid = Session.statement uuid stmt
     |]
 
 getCreatedAtByRefreshToken
-  :: (WithDb env m, HasCallStack)
+  :: (WithDb, HasCallStack)
   => UUID
-  -> m (Maybe Time.UTCTime)
+  -> IO (Maybe Time.UTCTime)
 getCreatedAtByRefreshToken uuid = do
-  r <- withConn $ Session.run (getCreatedAtByRefreshTokenSession uuid)
-  liftError r
+  withConn $ Session.run (getCreatedAtByRefreshTokenSession uuid)
 
 updateRefreshTokenSession :: UUID -> UUID -> Session.Session (Maybe (Time.UTCTime, Int))
 updateRefreshTokenSession old new = fmap (second fromIntegral) <$> Session.statement (old, new) stmt
@@ -67,10 +65,9 @@ updateRefreshTokenSession old new = fmap (second fromIntegral) <$> Session.state
     |]
 
 updateRefreshToken
-  :: (WithDb env m, HasCallStack)
+  :: (WithDb, HasCallStack)
   => UUID
   -> UUID
-  -> m (Maybe (Time.UTCTime, Int))
+  -> IO (Maybe (Time.UTCTime, Int))
 updateRefreshToken old new = do
-  r <- withConn $ Session.run (updateRefreshTokenSession old new)
-  liftError r
+  withConn $ Session.run (updateRefreshTokenSession old new)

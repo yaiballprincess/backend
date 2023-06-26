@@ -17,7 +17,7 @@ import GHC.Stack (HasCallStack)
 import Hasql.Session qualified as Session
 import Hasql.Statement
 import Hasql.TH qualified as TH
-import YIBP.Db.Util
+import YIBP.Db.Db
 
 import YIBP.Core.Sender
 
@@ -34,7 +34,7 @@ insertSenderSession sender =
       )
       stmt
   where
-    stmt :: Statement (T.Text, T.Text, Maybe T.Text) (Maybe Int32)
+    
     stmt =
       [TH.maybeStatement|
       insert into "sender" ("name", "access_token", "bot_access_token") values
@@ -43,10 +43,9 @@ insertSenderSession sender =
       returning ("id" :: int4)
     |]
 
-insertSender :: (WithDb env m, HasCallStack) => Sender -> m (Maybe Int)
+insertSender :: (WithDb, HasCallStack) => Sender -> IO (Maybe Int)
 insertSender sender = do
-  r <- withConn $ Session.run (insertSenderSession sender)
-  liftError r
+  withConn $ Session.run (insertSenderSession sender)
 
 getAllSendersSession :: Session.Session (V.Vector (Int, T.Text))
 getAllSendersSession =
@@ -60,14 +59,13 @@ getAllSendersSession =
       from "sender"
     |]
 
-getAllSenders :: (WithDb env m, HasCallStack) => m (V.Vector (Int, T.Text))
-getAllSenders = withConn (Session.run getAllSendersSession) >>= liftError
+getAllSenders :: (WithDb, HasCallStack) => IO (V.Vector (Int, T.Text))
+getAllSenders = withConn (Session.run getAllSendersSession)
 
-getSenderById :: (WithDb env m, HasCallStack) => Int -> m (Maybe Sender)
+getSenderById :: (WithDb, HasCallStack) => Int -> IO (Maybe Sender)
 getSenderById sid = do
   r <- withConn (Session.run (Session.statement (fromIntegral sid) stmt))
-  let ret = fmap (\(n, at_, bat) -> Sender {name = n, accessToken = at_, botAccessToken = bat}) <$> r
-  liftError ret
+  pure $ (\(n, at_, bat) -> Sender {name = n, accessToken = at_, botAccessToken = bat}) <$> r
   where
     stmt :: Statement Int32 (Maybe (T.Text, T.Text, Maybe T.Text))
     stmt =
@@ -86,8 +84,8 @@ deleteSenderSession _id = (== 1) <$> Session.statement (fromIntegral _id) stmt
       DELETE FROM "sender" WHERE "id" = ($1 :: int4)
     |]
 
-deleteSender :: (WithDb env m, HasCallStack) => Int -> m Bool
-deleteSender _id = withConn (Session.run (deleteSenderSession _id)) >>= liftError
+deleteSender :: (WithDb, HasCallStack) => Int -> IO Bool
+deleteSender _id = withConn (Session.run (deleteSenderSession _id))
 
 data UpdateSenderPayload = UpdateSenderPayload
   { newName :: !(Maybe T.Text)
@@ -122,5 +120,5 @@ updateSenderSession _id payload =
         NOT EXISTS (SELECT 1 FROM "sender" WHERE "name" = ($2 :: text?))
     |]
 
-updateSender :: (WithDb env m, HasCallStack) => Int -> UpdateSenderPayload -> m Bool
-updateSender _id payload = withConn (Session.run (updateSenderSession _id payload)) >>= liftError
+updateSender :: (WithDb, HasCallStack) => Int -> UpdateSenderPayload -> IO Bool
+updateSender _id payload = withConn (Session.run (updateSenderSession _id payload))

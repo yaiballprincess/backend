@@ -1,4 +1,4 @@
-module YIBP.Config (Config, DbConfig, parseConfig) where
+module YIBP.Config where
 
 import Data.Time.Clock
 
@@ -9,7 +9,7 @@ import Data.Text qualified as T
 import Control.Monad.IO.Class
 import System.Environment
 
-import Optics.TH (makeFieldLabelsNoPrefix)
+import Optics (makeFieldLabelsNoPrefix)
 
 data DbConfig = DbConfig
   { host :: !T.Text
@@ -31,13 +31,22 @@ data Config = Config
 makeFieldLabelsNoPrefix ''DbConfig
 makeFieldLabelsNoPrefix ''Config
 
-parseDbConfig :: (MonadIO m) => m DbConfig
+type WithConfig = (?appConfig :: Config)
+
+withConfig :: (WithConfig) => (Config -> a) -> a
+withConfig f = f ?appConfig
+
+
+getConfig :: WithConfig => Config
+getConfig = ?appConfig
+
+parseDbConfig :: IO DbConfig
 parseDbConfig = do
-  host <- liftIO $ getEnv "DB_CONFIG_HOST"
-  port :: Int <- liftIO $ read <$> getEnv "DB_CONFIG_PORT"
-  user <- liftIO $ getEnv "DB_CONFIG_USER"
-  password <- liftIO $ getEnv "DB_CONFIG_PASSWORD"
-  dbName <- liftIO $ getEnv "DB_CONFIG_DB"
+  host <- getEnv "DB_CONFIG_HOST"
+  port :: Int <- read <$> getEnv "DB_CONFIG_PORT"
+  user <- getEnv "DB_CONFIG_USER"
+  password <- getEnv "DB_CONFIG_PASSWORD"
+  dbName <- getEnv "DB_CONFIG_DB"
   pure $
     DbConfig
       { host = T.pack host
@@ -47,10 +56,10 @@ parseDbConfig = do
       , db = T.pack dbName
       }
 
-parseConfig :: (MonadIO m, MonadFail m) => m Config
+parseConfig :: IO Config
 parseConfig = do
   dbConfig <- parseDbConfig
-  jwtFilePath <- liftIO $ getEnv "JWT_CONFIG_FILEPATH"
+  jwtFilePath <- getEnv "JWT_CONFIG_FILEPATH"
   Just (jwkConfig :: JWK) <- liftIO $ J.decodeFileStrict' jwtFilePath
   pure $
     Config

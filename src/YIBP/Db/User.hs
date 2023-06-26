@@ -10,16 +10,15 @@ import Hasql.Session qualified as Session
 import Hasql.Statement
 import Hasql.TH qualified as TH
 
-import YIBP.Db.Util
+import YIBP.Db.Db
 import Data.Bifunctor
 
 isUserAdmin
-  :: (WithDb env m, HasCallStack)
+  :: (WithDb, HasCallStack)
   => Int
-  -> m (Maybe Bool)
+  -> IO (Maybe Bool)
 isUserAdmin uid = do
-  r <- withConn $ Session.run (Session.statement (fromIntegral uid) stmt)
-  liftError r
+  withConn $ Session.run (Session.statement (fromIntegral uid) stmt)
   where
     stmt :: Statement Int32 (Maybe Bool)
     stmt =
@@ -28,13 +27,12 @@ isUserAdmin uid = do
       |]
 
 insertUser
-  :: (WithDb env m, HasCallStack)
+  :: (WithDb, HasCallStack)
   => T.Text
   -> BS.ByteString
-  -> m (Maybe Int)
+  -> IO (Maybe Int)
 insertUser username hashedPassword = do
-  r <- withConn $ Session.run (Session.statement (username, hashedPassword) stmt)
-  liftError (fmap (fmap fromIntegral) r)
+  fmap fromIntegral <$> withConn (Session.run (Session.statement (username, hashedPassword) stmt))
   where
     stmt :: Statement (T.Text, BS.ByteString) (Maybe Int32)
     stmt =
@@ -46,12 +44,11 @@ insertUser username hashedPassword = do
       |]
 
 findUserByUsername
-  :: (WithDb env m, HasCallStack)
+  :: (WithDb, HasCallStack)
   => T.Text
-  -> m (Maybe (Int, BS.ByteString))
+  -> IO (Maybe (Int, BS.ByteString))
 findUserByUsername username = do
-  r <- withConn $ Session.run (Session.statement username stmt)
-  liftError (fmap (fmap (first fromIntegral)) r)
+  fmap (first fromIntegral) <$> withConn (Session.run (Session.statement username stmt))
   where
     stmt :: Statement T.Text (Maybe (Int32, BS.ByteString))
     stmt =
