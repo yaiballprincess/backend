@@ -1,4 +1,5 @@
-cabal-version:      3.0
+cabal-version:   3.0
+
 -- The cabal-version field refers to the version of the .cabal specification,
 -- and can be different from the cabal-install (the tool) version and the
 -- Cabal (the library) version you are using. As such, the Cabal (the library)
@@ -11,7 +12,7 @@ cabal-version:      3.0
 --   http://haskell.org/cabal/users-guide/
 --
 -- The name of the package.
-name:               yaiballprincess
+name:            yaiballprincess
 
 -- The package version.
 -- See the Haskell package versioning policy (PVP) for standards
@@ -20,7 +21,7 @@ name:               yaiballprincess
 -- PVP summary:     +-+------- breaking API changes
 --                  | | +----- non-breaking API additions
 --                  | | | +--- code changes with no API change
-version:            0.1.0.0
+version:         0.1.0.0
 
 -- A short (one-line) description of the package.
 -- synopsis:
@@ -29,178 +30,177 @@ version:            0.1.0.0
 -- description:
 
 -- URL for the project homepage or repository.
-homepage:           https://github.com/ablearthy/yaiballprincess
+homepage:        https://github.com/ablearthy/yaiballprincess
 
 -- The license under which the package is released.
-license:            BSD-3-Clause
+license:         BSD-3-Clause
 
 -- The file containing the license text.
-license-file:       LICENSE
+license-file:    LICENSE
 
 -- The package author(s).
-author:             Able Arthy
+author:          Able Arthy
 
 -- An email address to which users can send suggestions, bug reports, and patches.
-maintainer:         ablearthy@gmail.com
+maintainer:      ablearthy@gmail.com
 
 -- A copyright notice.
 -- copyright:
-category:           Web
-build-type:         Simple
+category:        Web
+build-type:      Simple
 
 -- Extra doc files to be distributed with the package, such as a CHANGELOG or a README.
-extra-doc-files:    CHANGELOG.md
+extra-doc-files: CHANGELOG.md
 
 -- Extra source files to be distributed with the package, such as examples, or a tutorial module.
 -- extra-source-files:
 
 common warnings
-    ghc-options: -Wall -threaded
+  ghc-options: -Wall -threaded
 
 library
-    -- Import common warning flags.
-    import:           warnings
+  -- Import common warning flags.
+  import:             warnings
 
-    -- Modules exported by the library.
-    exposed-modules:  
-        MyLib
+  -- Modules exported by the library.
+  exposed-modules:    MyLib
 
-    -- Modules included in this library but not exported.
-    other-modules:
-        YIBP.App,
-        YIBP.Config,
-        YIBP.Server.Auth,
-        YIBP.Server.Sender,
-        YIBP.Server.Receiver,
-        YIBP.Server.Rule,
-        YIBP.Server.PollTemplate,
-        YIBP.Server,
-        YIBP.Db.Util,
-        YIBP.Db.User,
-        YIBP.Db.Auth,
-        YIBP.Db.PollTemplate,
-        YIBP.Db.Sender,
-        YIBP.Db.Rule,
-        YIBP.Db.Receiver,
-        YIBP.Core.Poll,
-        YIBP.Core.Rule,
-        YIBP.Core.Receiver,
-        YIBP.Core.Sender,
-        YIBP.Core.User,
-        YIBP.Util.WithId,
-        YIBP.VK.Client,
-        YIBP.VK.Types,
-        YIBP.Scheduler.Scheduler,
-        YIBP.Scheduler.Util
+  -- Modules included in this library but not exported.
+  other-modules:
+    YIBP.App
+    YIBP.Config
+    YIBP.Core.Poll
+    YIBP.Core.Receiver
+    YIBP.Core.Rule
+    YIBP.Core.Sender
+    YIBP.Core.User
+    YIBP.Db.Auth
+    YIBP.Db.PollTemplate
+    YIBP.Db.Receiver
+    YIBP.Db.Rule
+    YIBP.Db.Sender
+    YIBP.Db.User
+    YIBP.Db.Util
+    YIBP.Scheduler.Scheduler
+    YIBP.Scheduler.Util
+    YIBP.Server
+    YIBP.Server.Auth
+    YIBP.Server.PollTemplate
+    YIBP.Server.Receiver
+    YIBP.Server.Rule
+    YIBP.Server.Sender
+    YIBP.Util.WithId
+    YIBP.VK.Client
+    YIBP.VK.Types
 
-    -- LANGUAGE extensions used by modules in this package.
-    default-extensions:
-        DataKinds,
-        DeriveGeneric,
-        RankNTypes,
-        TypeApplications,
-        TemplateHaskell,
-        QuasiQuotes,
-        GADTs,
-        TypeFamilies,
-        TypeOperators,
-        LambdaCase,
-        DuplicateRecordFields,
-        NoFieldSelectors,
-        UndecidableInstances,
-        ImplicitParams,
-        OverloadedLabels,
-        OverloadedRecordDot
+  -- LANGUAGE extensions used by modules in this package.
+  default-extensions:
+    NoFieldSelectors
+    DataKinds
+    DeriveGeneric
+    DuplicateRecordFields
+    GADTs
+    ImplicitParams
+    LambdaCase
+    OverloadedLabels
+    OverloadedRecordDot
+    QuasiQuotes
+    RankNTypes
+    TemplateHaskell
+    TypeApplications
+    TypeFamilies
+    TypeOperators
+    UndecidableInstances
 
-    -- Other library packages from which modules are imported.
-    build-depends:
-        aeson,
-        deriving-aeson,
-        aeson-optics,
-        async,
-        base ^>=4.17.1.0,
-        bytestring,
-        servant ==0.19.1,
-        servant-server,
-        servant-auth,
-        servant-auth-server,
-        cookie,
-        mtl,
-        transformers,
-        time,
-        password,
-        text,
-        vector,
-        unordered-containers,
-        containers,
-        stm,
-        wreq,
-        hasql ==1.6.3,
-        hasql-th,
-        optics,
-        optics-core,
-        optics-th,
-        warp,
-        jose,
-        uuid,
-        cron,
-        unliftio,
-        unliftio-core,
-        random
+  -- Other library packages from which modules are imported.
+  build-depends:
+    , aeson
+    , aeson-optics
+    , async
+    , base                  ^>=4.17.1.0
+    , bytestring
+    , containers
+    , cookie
+    , cron
+    , deriving-aeson
+    , hasql                 ==1.6.3
+    , hasql-th
+    , jose
+    , mtl
+    , optics
+    , optics-core
+    , optics-th
+    , password
+    , random
+    , servant               ==0.19.1
+    , servant-auth
+    , servant-auth-server
+    , servant-server
+    , stm
+    , text
+    , time
+    , transformers
+    , unliftio
+    , unliftio-core
+    , unordered-containers
+    , uuid
+    , vector
+    , warp
+    , wreq
 
-    -- Directories containing source files.
-    hs-source-dirs:   src
+  -- Directories containing source files.
+  hs-source-dirs:     src
 
-    -- Base language which the package is written in.
-    default-language: GHC2021
+  -- Base language which the package is written in.
+  default-language:   GHC2021
 
 executable yaiballprincess
-    -- Import common warning flags.
-    import:           warnings
+  -- Import common warning flags.
+  import:           warnings
 
-    -- .hs or .lhs file containing the Main module.
-    main-is:          Main.hs
+  -- .hs or .lhs file containing the Main module.
+  main-is:          Main.hs
 
-    -- Modules included in this executable, other than Main.
-    -- other-modules:
+  -- Modules included in this executable, other than Main.
+  -- other-modules:
 
-    -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
+  -- LANGUAGE extensions used by modules in this package.
+  -- other-extensions:
 
-    -- Other library packages from which modules are imported.
-    build-depends:
-        base ^>=4.17.1.0,
-        yaiballprincess
+  -- Other library packages from which modules are imported.
+  build-depends:
+    , base             ^>=4.17.1.0
+    , yaiballprincess
 
-    -- Directories containing source files.
-    hs-source-dirs:   app
+  -- Directories containing source files.
+  hs-source-dirs:   app
 
-    -- Base language which the package is written in.
-    default-language: GHC2021
+  -- Base language which the package is written in.
+  default-language: GHC2021
 
 test-suite yaiballprincess-test
-    -- Import common warning flags.
-    import:           warnings
+  -- Import common warning flags.
+  import:           warnings
 
-    -- Base language which the package is written in.
-    default-language: GHC2021
+  -- Base language which the package is written in.
+  default-language: GHC2021
 
-    -- Modules included in this executable, other than Main.
-    -- other-modules:
+  -- Modules included in this executable, other than Main.
+  -- other-modules:
 
-    -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
+  -- LANGUAGE extensions used by modules in this package.
+  -- other-extensions:
 
-    -- The interface type and version of the test suite.
-    type:             exitcode-stdio-1.0
+  -- The interface type and version of the test suite.
+  type:             exitcode-stdio-1.0
 
-    -- Directories containing source files.
-    hs-source-dirs:   test
+  -- Directories containing source files.
+  hs-source-dirs:   test
 
-    -- The entrypoint to the test suite.
-    main-is:          Main.hs
+  -- The entrypoint to the test suite.
+  main-is:          Main.hs
 
-    -- Test dependencies.
-    build-depends:
-        base ^>=4.17.1.0,
-        yaiballprincess
+  -- Test dependencies.
+  build-depends:
+    , base             ^>=4.17.1.0
+    , yaiballprincess
