@@ -4,7 +4,7 @@
 module YIBP.Scheduler.Scheduler
   ( Scheduler
   , WithScheduler
-  , withSchedulerM
+  , withScheduler
   , mkScheduler
   , runScheduler
   , addRegularRule
@@ -63,9 +63,9 @@ import YIBP.Core.Sender
 import YIBP.Db.PollTemplate
 import YIBP.Db.Receiver
 import YIBP.Db.Rule
-import YIBP.Db.Util
 import YIBP.VK.Client
 import YIBP.VK.Types
+import YIBP.Db.Db
 
 type RuleId = Int
 type ExceptionRuleId = Int
@@ -84,8 +84,8 @@ newtype Scheduler = Scheduler (TQueue SchedulerRuleEvent)
 
 type WithScheduler = (?scheduler :: Scheduler)
 
-withSchedulerM :: (WithScheduler) => (Scheduler -> m a) -> m a
-withSchedulerM f = f ?scheduler
+withScheduler :: (WithScheduler) => (Scheduler -> m a) -> m a
+withScheduler f = f ?scheduler
 
 mkScheduler :: IO Scheduler
 mkScheduler = Scheduler <$> newTQueueIO
@@ -121,29 +121,28 @@ doSTMWithTimeout n action = do
     Just <$> action
       <|> Nothing <$ (readTVar delay >>= check)
 
-runScheduler :: (WithDb env m, MonadIO m, MonadUnliftIO m) => Scheduler -> m ()
-runScheduler (Scheduler queue) = runScheduler' queue Map.empty Map.empty Map.empty
+runScheduler :: (WithDb, WithScheduler) => IO ()
+runScheduler = withScheduler $ \(Scheduler queue) ->
+  runScheduler' queue Map.empty Map.empty Map.empty
 
 runScheduler'
-  :: forall env m
-   . (WithDb env m, MonadIO m, MonadUnliftIO m)
+  :: (WithDb)
   => TQueue SchedulerRuleEvent
   -> Map RuleId UTCTime
   -> Map RuleId RegularRule
   -> Map ExceptionRuleId ExceptionRule
-  -> m ()
+  -> IO ()
 runScheduler' queue = loop
   where
-    loop :: Map RuleId UTCTime -> Map RuleId RegularRule -> Map ExceptionRuleId ExceptionRule -> m ()
     loop nextTimeMap rulesMap exceptionsMap = do
-      curTime <- liftIO getCurrentTime
+      curTime <- getCurrentTime
       let delay = getNextDelay curTime nextTimeMap
-      liftIO (doSTMWithTimeout delay (readTQueue queue)) >>= \case
+      doSTMWithTimeout delay (readTQueue queue) >>= \case
         Nothing -> do
-          candidates <- (\t -> getCandidates t nextTimeMap rulesMap exceptionsMap) <$> liftIO getCurrentTime
-          _ <- sendMessages $ map (\(_, a, b) -> (a, b)) candidates
+          candidates <- (\t -> getCandidates t nextTimeMap rulesMap exceptionsMap) <$> getCurrentTime
+          _ <- forkIO $ sendMessages $ map (\(_, a, b) -> (a, b)) candidates
           let ruleIds = Set.fromList $ map (\(a, _, _) -> a) candidates
-          tz <- liftIO getCurrentTimeZone
+          tz <- getCurrentTimeZone
           let nextTimeMap' =
                 Map.mapWithKey
                   ( \rid t ->
@@ -154,15 +153,15 @@ runScheduler' queue = loop
                   nextTimeMap
           loop nextTimeMap' rulesMap exceptionsMap
         Just (AddRegularRuleEvent rid rule) -> do
-          timeNow <- liftIO getCurrentTime
-          tz <- liftIO getCurrentTimeZone
+          timeNow <- getCurrentTime
+          tz <- getCurrentTimeZone
           loop
             (Map.insert rid (getNextTime (rule ^. #cronRule) timeNow tz) nextTimeMap)
             (Map.insert rid rule rulesMap)
             exceptionsMap
         Just (EditRegularRuleEvent rid rule) -> do
-          timeNow <- liftIO getCurrentTime
-          tz <- liftIO getCurrentTimeZone
+          timeNow <- getCurrentTime
+          tz <- getCurrentTimeZone
           loop
             (Map.insert rid (getNextTime (rule ^. #cronRule) timeNow tz) nextTimeMap)
             (Map.insert rid rule rulesMap)
@@ -210,11 +209,11 @@ runScheduler' queue = loop
             let rule = rulesMap Map.! rid
             in  (rid, rule ^. #receiverId, rule ^. #pollTemplateId)
 
-    sendMessages :: [(ReceiverId, PollTemplateId)] -> m ()
-    sendMessages candidates = withRunInIO $ \runInIO -> void $ liftIO $ forkIO $ runInIO $ do
+    sendMessages :: [(ReceiverId, PollTemplateId)] -> IO ()
+    sendMessages candidates = do
       receivers <- getReceiversWithSendersByIds receiverIds
       templates <- getPollTemplatesByIds pollTemplateIds
-      forM_ candidates $ \(rid, tid) -> liftIO $ sendMessage (receivers IntMap.! rid) (templates IntMap.! tid)
+      forM_ candidates $ \(rid, tid) -> sendMessage (receivers IntMap.! rid) (templates IntMap.! tid)
       where
         receiverIds = V.fromList $ IntSet.toList (IntSet.fromList (map fst candidates))
         pollTemplateIds = V.fromList $ IntSet.toList (IntSet.fromList (map snd candidates))
@@ -285,11 +284,11 @@ messagesSendMessage client peerId attachments = do
       Left _ -> error "error while execution of messages.send method"
       Right _ -> pure ()
 
-initScheduler :: (WithDb env m, MonadIO m, WithScheduler) => m ()
+initScheduler :: (WithDb, WithScheduler) => IO ()
 initScheduler = do
   rules <- getAllRules
   exceptions <- getAllExceptionRules
   V.forM_ rules $ \(rid, rule) -> do
-    withSchedulerM $ \sch -> liftIO $ addRegularRule sch rid rule
+    withScheduler $ \sch -> addRegularRule sch rid rule
   V.forM_ exceptions $ \(rid, rule) -> do
-    withSchedulerM $ \sch -> liftIO $ addExceptionRule sch rid rule
+    withScheduler $ \sch -> addExceptionRule sch rid rule

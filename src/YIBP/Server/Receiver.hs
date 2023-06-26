@@ -21,7 +21,6 @@ import Servant.Auth
 import Servant.Auth.Server
 import Servant.Server.Generic
 
-import YIBP.App (AppT)
 import YIBP.Core.Receiver
 import YIBP.Core.Sender
 import YIBP.Util.WithId
@@ -31,7 +30,7 @@ import Data.Vector.Optics
 import Optics
 import YIBP.Db.Receiver
 import YIBP.Db.Sender (getSenderById)
-import YIBP.Db.Util
+import YIBP.Db.Db
 import YIBP.VK.Client
 import YIBP.VK.Types
 
@@ -54,7 +53,7 @@ data ReceiverAPI route = ReceiverAPI
   }
   deriving (Generic)
 
-theReceiverAPI :: (MonadIO m, MonadError ServerError m) => ReceiverAPI (AsServerT (AppT m))
+theReceiverAPI :: WithDb => ReceiverAPI (AsServerT Handler)
 theReceiverAPI =
   ReceiverAPI
     { _add = addHandler
@@ -63,9 +62,9 @@ theReceiverAPI =
     , _getAll = getAllHandler
     }
 
-addHandler :: (MonadIO m, WithDb env m, MonadError ServerError m) => AddRequest -> m ReceiverId
+addHandler :: WithDb => AddRequest -> Handler ReceiverId
 addHandler req = do
-  insertReceiver (req ^. #senderId) (req ^. #receiver) >>= \case
+  liftIO (insertReceiver (req ^. #senderId) (req ^. #receiver)) >>= \case
     Just _id -> pure _id
     Nothing -> throwError err422
 
@@ -108,9 +107,9 @@ convert resp = f =<< toVectorOf (#items % traversed % #conversation) resp
             , peerId = -_id
             }
 
-getConversationsHandler :: (MonadIO m, WithDb env m, MonadError ServerError m) => SenderId -> m (V.Vector Receiver)
+getConversationsHandler :: (WithDb) => SenderId -> Handler (V.Vector Receiver)
 getConversationsHandler req = do
-  mSender <- getSenderById req
+  mSender <- liftIO $ getSenderById req -- TODO: use lambda case
   case mSender of
     Nothing -> throwError err422
     Just sender -> do
@@ -128,12 +127,12 @@ getConversationsHandler req = do
         Right (WithResponse response) -> do
           pure (convert response)
 
-removeHandler :: (MonadIO m, WithDb env m, MonadError ServerError m) => ReceiverId -> m NoContent
+removeHandler :: (WithDb) => ReceiverId -> Handler NoContent
 removeHandler req = do
-  deleteReceiver req >>= \case
+  liftIO (deleteReceiver req) >>= \case
     True -> pure NoContent
     False -> throwError err422
 
-getAllHandler :: (MonadIO m, WithDb env m) => m (V.Vector (WithId Receiver))
+getAllHandler :: (WithDb) => Handler (V.Vector (WithId Receiver))
 getAllHandler = do
-  V.map (\(idx, recv) -> WithId idx recv) <$> getAllReceivers
+  V.map (\(idx, recv) -> WithId idx recv) <$> liftIO getAllReceivers

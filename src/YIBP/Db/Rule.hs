@@ -9,7 +9,7 @@ import Data.Text qualified as T
 import Data.Vector qualified as V
 
 import YIBP.Core.Rule
-import YIBP.Db.Util
+import YIBP.Db.Db
 
 import Data.Time
 import Optics
@@ -19,9 +19,9 @@ import YIBP.Scheduler.Util
 
 -- TODO: add error handling/think of possible errors (such as no references to another column in table)
 
-getRuleById :: (WithDb env m) => Int -> m RegularRule
+getRuleById :: (WithDb) => Int -> IO RegularRule
 getRuleById _id = do
-  withConn' (Session.run (Session.statement (fromIntegral _id) stmt)) >>= \case
+  withConn (Session.run (Session.statement (fromIntegral _id) stmt)) >>= \case
     (receiverId, pollTemplateId, cronRule) ->
       pure $
         RegularRule
@@ -38,9 +38,9 @@ getRuleById _id = do
       where "id" = $1 ::  int4
     |]
 
-getRegularRuleByExceptionId :: WithDb env m => Int -> m RegularRule
+getRegularRuleByExceptionId :: WithDb => Int -> IO RegularRule
 getRegularRuleByExceptionId _id = do
-  withConn' (Session.run (Session.statement (fromIntegral _id) stmt)) >>= \case
+  withConn (Session.run (Session.statement (fromIntegral _id) stmt)) >>= \case
     (receiverId, pollTemplateId, cronRule) ->
       pure $
         RegularRule
@@ -58,10 +58,10 @@ getRegularRuleByExceptionId _id = do
       where "id" = $1 ::  int4
     |]
 
-insertRule :: (WithDb env m) => RegularRule -> m Int
+insertRule :: (WithDb) => RegularRule -> IO Int
 insertRule rule = do
   fromIntegral
-    <$> withConn'
+    <$> withConn
       ( Session.run
           ( Session.statement
               ( fromIntegral (rule ^. #receiverId)
@@ -80,10 +80,10 @@ insertRule rule = do
       returning "id" :: int4
     |]
 
-insertExceptionRule :: (WithDb env m) => ExceptionRule -> m Int
+insertExceptionRule :: (WithDb) => ExceptionRule -> IO Int
 insertExceptionRule rule = do
   fromIntegral
-    <$> withConn'
+    <$> withConn
       ( Session.run
           ( Session.statement
               ( fromIntegral (rule ^. #regularRuleId)
@@ -103,9 +103,9 @@ insertExceptionRule rule = do
       returning "id" :: int4
     |]
 
-getAllRules :: (WithDb env m) => m (V.Vector (Int, RegularRule))
+getAllRules :: (WithDb) => IO (V.Vector (Int, RegularRule))
 getAllRules = do
-  vec <- withConn' (Session.run (Session.statement () stmt))
+  vec <- withConn (Session.run (Session.statement () stmt))
   pure $
     V.map
       ( \(i, receiverId, pollTemplateId, cronRule) ->
@@ -126,9 +126,9 @@ getAllRules = do
       from "regular_rule"
     |]
 
-getAllExceptionRules :: (WithDb env m) => m (V.Vector (Int, ExceptionRule))
+getAllExceptionRules :: (WithDb) => IO (V.Vector (Int, ExceptionRule))
 getAllExceptionRules = do
-  vec <- withConn' (Session.run (Session.statement () stmt))
+  vec <- withConn (Session.run (Session.statement () stmt))
   pure $
     V.map
       ( \(i, regularRuleId, receiverId, pollTemplateId, sendAt) ->
@@ -170,9 +170,9 @@ data UpdateExceptionRule = UpdateExceptionRule
   , sendAt :: !(Maybe UTCTime)
   }
 
-updateRegularRule :: (WithDb env m) => UpdateRegularRule -> m (Maybe RegularRule)
+updateRegularRule :: (WithDb) => UpdateRegularRule -> IO (Maybe RegularRule)
 updateRegularRule rule = do
-  withConn'
+  withConn
     ( Session.run
         ( Session.statement
             ( fromIntegral rule.ruleId
@@ -208,9 +208,9 @@ updateRegularRule rule = do
         "cron_rule" :: text
     |]
 
-updateExceptionRule :: (WithDb env m) => UpdateExceptionRule -> m (Maybe ExceptionRule)
+updateExceptionRule :: (WithDb) => UpdateExceptionRule -> IO (Maybe ExceptionRule)
 updateExceptionRule rule = do
-  withConn'
+  withConn
     ( Session.run
         ( Session.statement
             ( fromIntegral rule.exceptionRuleId
@@ -250,9 +250,9 @@ updateExceptionRule rule = do
         "send_at" :: TIMESTAMPTZ
     |]
 
-deleteRegularRule :: (WithDb env m) => Int -> m Bool
+deleteRegularRule :: (WithDb) => Int -> IO Bool
 deleteRegularRule _id = do
-  withConn'
+  withConn
     ( Session.run
         ( Session.statement
             (fromIntegral _id)
@@ -268,9 +268,9 @@ deleteRegularRule _id = do
       delete from "regular_rule" where "id" = $1 :: int4
     |]
 
-deleteExceptionRule :: (WithDb env m) => Int -> m Bool
+deleteExceptionRule :: (WithDb) => Int -> IO Bool
 deleteExceptionRule _id = do
-  withConn'
+  withConn
     ( Session.run
         ( Session.statement
             (fromIntegral _id)
@@ -293,9 +293,9 @@ data RegularRuleDetailed = RegularRuleDetailed
   , cronRule :: !MyCronSchedule
   }
 
-getAllRulesDetailed :: (WithDb env m) => m (V.Vector (Int, RegularRuleDetailed))
+getAllRulesDetailed :: (WithDb) => IO (V.Vector (Int, RegularRuleDetailed))
 getAllRulesDetailed = do
-  vec <- withConn' (Session.run (Session.statement () stmt))
+  vec <- withConn (Session.run (Session.statement () stmt))
   pure $
     V.map
       ( \(i, receiverId, receiverName, receiverPeerId, senderId, senderName, ptId, ptIsMultiple, ptIsAnonymous, ptDuration, ptOptions, cronRule) ->
@@ -335,9 +335,9 @@ data ExceptionRuleDetailed = ExceptionRuleDetailed
   , sendAt :: UTCTime
   }
 
-getAllExceptionRulesDetailed :: (WithDb env m) => m (V.Vector (Int, ExceptionRuleDetailed))
+getAllExceptionRulesDetailed :: (WithDb) => IO (V.Vector (Int, ExceptionRuleDetailed))
 getAllExceptionRulesDetailed = do
-  vec <- withConn' (Session.run (Session.statement () stmt))
+  vec <- withConn (Session.run (Session.statement () stmt))
   pure $
     V.map
       ( \(i, regularRuleId, receiverId, receiverName, receiverPeerId, senderId, senderName, ptId, ptIsMultiple, ptIsAnonymous, ptDuration, ptOptions, sendAt) ->

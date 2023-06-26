@@ -9,48 +9,52 @@ import Data.Text.Encoding (encodeUtf8)
 
 import Control.Monad.Reader (runReaderT)
 
-import Hasql.Connection qualified as Connection
-
 import Optics
 
-import Servant.Auth.Server (defaultCookieSettings, defaultJWTSettings)
-import YIBP.App
-import YIBP.Config (parseConfig)
-import YIBP.Db.Receiver
-import YIBP.Server
-import YIBP.Scheduler.Scheduler
-import Servant.Auth.Server.Internal.AddSetCookie
-import GHC.Generics
-import Data.Vector qualified as V
 import Control.Concurrent
+import Data.Vector qualified as V
+import GHC.Generics
+import Hasql.Connection qualified as Connection
+import Servant.Auth.Server (defaultCookieSettings, defaultJWTSettings)
+import Servant.Auth.Server.Internal.AddSetCookie
+import YIBP.App
+import YIBP.Config 
+import YIBP.Db.Receiver
+import YIBP.Scheduler.Scheduler
+import YIBP.Server
+import Hasql.Connection
+import YIBP.Db.Db
 
-nt :: Env -> AppT Handler a -> Handler a
-nt e x = runReaderT x e
 
-withScheduler :: Scheduler -> (WithScheduler => IO a) -> IO a
-withScheduler sc a = let ?scheduler = sc in a
+runWithScheduler :: Scheduler -> ((WithScheduler) => IO a) -> IO a
+runWithScheduler sc a = let ?scheduler = sc in a
+
+runWithDb :: Connection -> ((WithDb) => IO a) -> IO a
+runWithDb conn a = let ?dbConn = conn in a
+
+runWithConfig :: Config -> ((WithConfig) => IO a) -> IO a
+runWithConfig config a = let ?appConfig = config in a
+
+getConnectionSettings :: DbConfig -> Connection.Settings
+getConnectionSettings dbConf =
+  Connection.settings
+    (encodeUtf8 dbConf.host)
+    (fromIntegral dbConf.port)
+    (encodeUtf8 dbConf.user)
+    (encodeUtf8 dbConf.password)
+    (encodeUtf8 dbConf.db)
 
 runApp :: IO ()
 runApp = do
   config <- parseConfig
-  let dbConf = config ^. #dbSettings
-  let connSettings =
-        Connection.settings
-          (encodeUtf8 (dbConf ^. #host))
-          (fromIntegral (dbConf ^. #port))
-          (encodeUtf8 (dbConf ^. #user))
-          (encodeUtf8 (dbConf ^. #password))
-          (encodeUtf8 (dbConf ^. #db))
+  let connSettings = getConnectionSettings config.dbSettings
   Right conn <- Connection.acquire connSettings
   scheduler <- mkScheduler
-  let env = Env {dbConnection = conn, jwk = config ^. #jwk, appConfig = config}
-  withScheduler scheduler $ do
-    _ <- forkIO $ do
-      runReaderT (runScheduler scheduler) env
-    _ <- forkIO $ do
-      runReaderT initScheduler env
+  runWithConfig config $ runWithDb conn $ runWithScheduler scheduler $ do
+    _ <- forkIO runScheduler 
+    _ <- forkIO initScheduler 
     run 8080 $
       genericServeTWithContext
-        (nt env)
+        id
         theAPI
         (defaultJWTSettings (config ^. #jwk) :. defaultCookieSettings :. EmptyContext)

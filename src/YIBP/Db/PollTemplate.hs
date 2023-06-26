@@ -16,7 +16,7 @@ import Hasql.Session qualified as Session
 import Hasql.Statement
 import Hasql.TH qualified as TH
 import YIBP.Core.Poll qualified as Core
-import YIBP.Db.Util
+import YIBP.Db.Db
 
 import Data.Int
 import Data.IntMap.Strict (IntMap)
@@ -45,9 +45,9 @@ data PollTemplateUpdate = PollTemplateUpdate
   }
   deriving (Show, Eq, Generic)
 
-insertPollTemplate :: (WithDb env m, HasCallStack) => PollTemplate -> m (Maybe Int)
+insertPollTemplate :: (WithDb, HasCallStack) => PollTemplate -> IO (Maybe Int)
 insertPollTemplate tmpl = do
-  withConn
+  fmap fromIntegral <$> withConn
     ( Session.run
         ( Session.statement
             ( tmpl ^. #isMultiple
@@ -57,7 +57,6 @@ insertPollTemplate tmpl = do
             stmt
         )
     )
-    >>= liftError . fmap (fmap fromIntegral)
   where
     stmt :: Statement (Bool, Bool, Maybe UTCTime) (Maybe Int32)
     stmt =
@@ -67,13 +66,12 @@ insertPollTemplate tmpl = do
       returning "id" :: int4
     |]
 
-insertPollTemplateOption :: (WithDb env m, HasCallStack) => Int -> T.Text -> m (Maybe Int)
+insertPollTemplateOption :: (WithDb, HasCallStack) => Int -> T.Text -> IO (Maybe Int)
 insertPollTemplateOption pollTemplateId text = do
-  withConn
+  fmap fromIntegral <$> withConn
     ( Session.run
         (Session.statement (fromIntegral pollTemplateId, text) stmt)
     )
-    >>= liftError . fmap (fmap fromIntegral)
   where
     stmt :: Statement (Int32, T.Text) (Maybe Int32)
     stmt =
@@ -83,14 +81,14 @@ insertPollTemplateOption pollTemplateId text = do
       returning "id" :: int4
       |]
 
-updatePollTemplate :: (WithDb env m, HasCallStack) => PollTemplateUpdate -> m Bool
+updatePollTemplate :: (WithDb, HasCallStack) => PollTemplateUpdate -> IO Bool
 updatePollTemplate upd = do
-  withConn
+  withConnEither
     ( Session.run
         (Session.statement (fromIntegral (upd ^. #pollTemplateId), upd ^. #isMultiple, upd ^. #isAnonymous, upd ^. #endsAt) stmt)
     )
     >>= \case
-      Left x -> error (show x) -- pure False
+      Left x -> pure False
       Right _ -> pure True
   where
     stmt :: Statement (Int32, Maybe Bool, Maybe Bool, Maybe UTCTime) ()
@@ -104,9 +102,9 @@ updatePollTemplate upd = do
         where "id" = $1 :: int4
     |]
 
-updatePollTemplateOption :: (WithDb env m, HasCallStack) => Int -> T.Text -> m Bool
+updatePollTemplateOption :: (WithDb, HasCallStack) => Int -> T.Text -> IO Bool
 updatePollTemplateOption _id text = do
-  withConn
+  withConnEither
     ( Session.run
         (Session.statement (fromIntegral _id, text) stmt)
     )
@@ -120,9 +118,9 @@ updatePollTemplateOption _id text = do
       update "poll_option" set "data" = $2 :: text where "id" = $1 :: int4
     |]
 
-deletePollTemplate :: (WithDb env m, HasCallStack) => Int -> m Bool
+deletePollTemplate :: (WithDb, HasCallStack) => Int -> IO Bool
 deletePollTemplate _id = do
-  withConn (Session.run (Session.statement (fromIntegral _id) stmt)) >>= \case
+  withConnEither (Session.run (Session.statement (fromIntegral _id) stmt)) >>= \case
     Left _ -> pure False
     Right _ -> pure True
   where
@@ -132,9 +130,9 @@ deletePollTemplate _id = do
       delete from "poll_template" where "id" = $1 :: int4
     |]
 
-deletePollTemplateOption :: (WithDb env m, HasCallStack) => Int -> m Bool
+deletePollTemplateOption :: (WithDb, HasCallStack) => Int -> IO Bool
 deletePollTemplateOption _id = do
-  withConn (Session.run (Session.statement (fromIntegral _id) stmt)) >>= \case
+  withConnEither (Session.run (Session.statement (fromIntegral _id) stmt)) >>= \case
     Left _ -> pure False
     Right _ -> pure True
   where
@@ -152,9 +150,9 @@ data PollTemplateGet = PollTemplateGet
   }
   deriving (Show, Eq, Generic)
 
-getAll :: (WithDb env m, HasCallStack) => m (V.Vector (Int, PollTemplateGet))
+getAll :: (WithDb, HasCallStack) => IO (V.Vector (Int, PollTemplateGet))
 getAll = do
-  vec <- withConn (Session.run (Session.statement () stmt)) >>= liftError
+  vec <- withConn (Session.run (Session.statement () stmt))
   pure $
     V.map
       ( \(_id, isMultiple, isAnonymous, duration, optionsIds, optionsData) ->
@@ -184,9 +182,9 @@ getAll = do
         group by poll_template.id
       |]
 
-getPollTemplatesByIds :: (WithDb env m, HasCallStack) => V.Vector Int -> m (IntMap Core.PollTemplate)
+getPollTemplatesByIds :: (WithDb, HasCallStack) => V.Vector Int -> IO (IntMap Core.PollTemplate)
 getPollTemplatesByIds ids = do
-  vec <- withConn' (Session.run (Session.statement (V.map fromIntegral ids) stmt))
+  vec <- withConn (Session.run (Session.statement (V.map fromIntegral ids) stmt))
   pure $
     IntMap.fromList $
       V.toList $

@@ -18,7 +18,7 @@ import Control.Monad.IO.Class
 import YIBP.App
 import YIBP.Core.Sender
 import YIBP.Db.Sender
-import YIBP.Db.Util
+import YIBP.Db.Db
 import YIBP.Server.Auth (AuthData, withAuth)
 
 import Optics
@@ -49,7 +49,7 @@ data SenderAPI route = SenderAPI
   }
   deriving (Generic)
 
-theSenderAPI :: (MonadIO m, MonadError ServerError m) => SenderAPI (AsServerT (AppT m))
+theSenderAPI :: (WithDb) => SenderAPI (AsServerT Handler)
 theSenderAPI =
   SenderAPI
     { _add = addHandler
@@ -58,24 +58,24 @@ theSenderAPI =
     , _edit = editHandler
     }
 
-addHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => Sender -> m Int
+addHandler :: (WithDb) => Sender -> Handler Int
 addHandler req = do
-  insertSender req >>= \case
+  liftIO (insertSender req) >>= \case
     Just _id -> pure _id
     Nothing -> throwError err400
 
-allHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => m (V.Vector AllSenderUnitResponse)
-allHandler = V.map (\(i, n) -> AllSenderUnitResponse i n) <$> getAllSenders
+allHandler :: WithDb => Handler (V.Vector AllSenderUnitResponse)
+allHandler = V.map (\(i, n) -> AllSenderUnitResponse i n) <$> liftIO getAllSenders
 
-removeHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => Int -> m NoContent
+removeHandler :: (WithDb) => Int -> Handler NoContent
 removeHandler _id = do
-  isSuccess <- deleteSender _id
+  isSuccess <- liftIO $ deleteSender _id
   if isSuccess then pure NoContent else throwError err400
 
-editHandler :: (MonadIO m, MonadError ServerError m, WithDb env m) => EditSenderRequest -> m NoContent
+editHandler :: (WithDb) => EditSenderRequest -> Handler NoContent
 editHandler req = do
   isSuccess <-
-    updateSender
+    liftIO $ updateSender
       (req ^. #id)
       UpdateSenderPayload
         { newName = req ^. #newName

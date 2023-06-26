@@ -75,12 +75,12 @@ library
     YIBP.Core.Sender
     YIBP.Core.User
     YIBP.Db.Auth
+    YIBP.Db.Db
     YIBP.Db.PollTemplate
     YIBP.Db.Receiver
     YIBP.Db.Rule
     YIBP.Db.Sender
     YIBP.Db.User
-    YIBP.Db.Util
     YIBP.Scheduler.Scheduler
     YIBP.Scheduler.Util
     YIBP.Server
