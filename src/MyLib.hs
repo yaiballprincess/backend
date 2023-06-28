@@ -23,7 +23,7 @@ import YIBP.Db.Receiver
 import YIBP.Scheduler.Scheduler
 import YIBP.Server
 import Hasql.Connection
-import YIBP.Db.Db
+import YIBP.Db
 
 
 runWithScheduler :: Scheduler -> ((WithScheduler) => IO a) -> IO a

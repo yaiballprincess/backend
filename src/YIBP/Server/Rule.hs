@@ -23,7 +23,7 @@ import YIBP.Core.Receiver
 import YIBP.Core.Rule
 import YIBP.Core.Sender
 import YIBP.Db.Rule
-import YIBP.Db.Db
+import YIBP.Db
 import YIBP.Scheduler.Scheduler
 import YIBP.Util.WithId
 

@@ -16,7 +16,7 @@ import Hasql.Session qualified as Session
 import Hasql.Statement
 import Hasql.TH qualified as TH
 import YIBP.Core.Poll qualified as Core
-import YIBP.Db.Db
+import YIBP.Db
 
 import Data.Int
 import Data.IntMap.Strict (IntMap)

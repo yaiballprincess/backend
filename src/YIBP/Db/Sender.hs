@@ -17,7 +17,7 @@ import GHC.Stack (HasCallStack)
 import Hasql.Session qualified as Session
 import Hasql.Statement
 import Hasql.TH qualified as TH
-import YIBP.Db.Db
+import YIBP.Db
 
 import YIBP.Core.Sender
 

@@ -18,7 +18,7 @@ import Control.Monad.IO.Class
 import YIBP.App
 import YIBP.Core.Sender
 import YIBP.Db.Sender
-import YIBP.Db.Db
+import YIBP.Db
 import YIBP.Server.Auth (AuthData, withAuth)
 
 import Optics

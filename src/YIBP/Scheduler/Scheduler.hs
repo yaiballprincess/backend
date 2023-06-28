@@ -65,7 +65,7 @@ import YIBP.Db.Receiver
 import YIBP.Db.Rule
 import YIBP.VK.Client
 import YIBP.VK.Types
-import YIBP.Db.Db
+import YIBP.Db
 
 type RuleId = Int
 type ExceptionRuleId = Int

@@ -21,7 +21,7 @@ import Optics
 
 import Control.Monad.Except
 import Deriving.Aeson
-import YIBP.Db.Db
+import YIBP.Db
 
 data PollTemplateAddRequest = PollTemplateAddRequest
   { isMultiple :: !Bool

@@ -11,7 +11,7 @@ import Hasql.Session qualified as Session
 import Hasql.Statement
 import Hasql.TH qualified as TH
 
-import YIBP.Db.Db
+import YIBP.Db
 
 insertRefreshTokenSession :: UUID -> Int -> Session.Session (Maybe Time.UTCTime)
 insertRefreshTokenSession uuid ownerId = Session.statement (uuid, fromIntegral ownerId) stmt
