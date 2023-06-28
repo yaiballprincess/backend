@@ -1,6 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DeriveAnyClass #-}
-module YIBP.Db.Db where
+module YIBP.Db where
 
 import GHC.Stack (HasCallStack, prettyCallStack, callStack)
 
