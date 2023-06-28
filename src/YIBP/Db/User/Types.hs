@@ -10,7 +10,8 @@ data InsertUser = InsertUser
   }
 
 data RawUser = RawUser
-  { username :: !T.Text
+  { id :: !Int
+  , username :: !T.Text
   , hashedPassword :: !BS.ByteString
   , isAdmin :: !Bool
   }

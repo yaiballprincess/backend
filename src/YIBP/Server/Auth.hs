@@ -32,17 +32,13 @@ import Crypto.JOSE
 import Servant.Auth.Server
 import YIBP.App
 import YIBP.Config
+import YIBP.Core.Auth
+import YIBP.Core.Id
 import YIBP.Core.User qualified as C
+import YIBP.Db
 import YIBP.Db.Auth
-import YIBP.Db.Db
 import YIBP.Db.User
 import YIBP.Util
-
-newtype AuthData = AuthData {uid :: Int}
-  deriving (Show, Eq, Generic)
-  deriving anyclass (FromJSON, ToJSON, FromJWT, ToJWT)
-
-makeFieldsNoPrefix ''AuthData
 
 data LoginRequest = LoginRequest
   { username :: !T.Text
@@ -61,13 +57,7 @@ newtype RefreshTokenResponse = RefreshTokenResponse
 makeFieldsNoPrefix ''RefreshTokenResponse
 
 data AuthAPI route = AuthAPI
-  { _register
-      :: route
-        :- Auth '[JWT] AuthData
-        :> "register"
-        :> ReqBody '[JSON] LoginRequest
-        :> Post '[JSON] (Maybe Int)
-  , _login
+  { _login
       :: route
         :- "login"
         :> ReqBody '[JSON] LoginRequest
@@ -83,26 +73,9 @@ data AuthAPI route = AuthAPI
 theAuthAPI :: (WithDb, WithConfig) => AuthAPI (AsServerT Handler)
 theAuthAPI =
   AuthAPI
-    { _register = registerHandler
-    , _login = loginHandler
+    { _login = loginHandler
     , _refresh = refreshHandler
     }
-
-registerHandler
-  :: (WithDb)
-  => AuthResult AuthData
-  -> LoginRequest
-  -> Handler (Maybe Int)
-registerHandler authData req = do
-  b <- isAdmin authData
-  unless b $ do
-    throwError err403
-  unless (C.checkUsername (req ^. #username)) $ do
-    throwError $ err422 {errBody = "invalid username"}
-  unless (C.checkPassword (req ^. #password)) $ do
-    throwError $ err422 {errBody = "invalid password"}
-  PasswordHash hashedPassword <- hashPassword $ mkPassword $ req ^. #password
-  liftIO $ insertUser (req ^. #username) (T.encodeUtf8 hashedPassword)
 
 loginHandler
   :: (WithDb, WithConfig)
@@ -157,21 +130,13 @@ genCookieAndJWT uuid ownerId createdAt = do
   ejwt <-
     liftIO $
       makeJWT
-        (AuthData ownerId)
+        (AuthData (Id ownerId))
         (defaultJWTSettings theConfig.jwk)
         (Just $ Time.addUTCTime accessTokenDuration createdAt)
   case ejwt of
     Left _ -> throwError err500
     Right jwt ->
       pure (cookie, T.decodeUtf8 $ BS.toStrict jwt)
-
-isAdmin
-  :: (WithDb)
-  => AuthResult AuthData
-  -> Handler Bool
-isAdmin (Authenticated (AuthData uid)) = do
-  fromMaybe False <$> liftIO (isUserAdmin uid)
-isAdmin _ = pure False
 
 withAuth :: (MonadError ServerError m) => AuthResult AuthData -> m a -> m a
 withAuth (Authenticated _) m = m

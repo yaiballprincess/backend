@@ -30,7 +30,7 @@ import Data.Vector.Optics
 import Optics
 import YIBP.Db.Receiver
 import YIBP.Db.Sender (getSenderById)
-import YIBP.Db.Db
+import YIBP.Db
 import YIBP.VK.Client
 import YIBP.VK.Types
 

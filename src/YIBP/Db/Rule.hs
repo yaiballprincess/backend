@@ -9,7 +9,7 @@ import Data.Text qualified as T
 import Data.Vector qualified as V
 
 import YIBP.Core.Rule
-import YIBP.Db.Db
+import YIBP.Db
 
 import Data.Time
 import Optics
