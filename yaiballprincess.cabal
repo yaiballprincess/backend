@@ -76,15 +76,19 @@ library
     YIBP.Core.Receiver
     YIBP.Core.Rule
     YIBP.Core.Sender
+    YIBP.Core.Session
     YIBP.Core.User
     YIBP.Db
-    YIBP.Db.Auth
     YIBP.Db.Id.Decoders
     YIBP.Db.Id.Encoders
     YIBP.Db.PollTemplate
     YIBP.Db.Receiver
     YIBP.Db.Rule
     YIBP.Db.Sender
+    YIBP.Db.Session
+    YIBP.Db.Session.Decoders
+    YIBP.Db.Session.Encoders
+    YIBP.Db.Session.Types
     YIBP.Db.User
     YIBP.Db.User.Decoders
     YIBP.Db.User.Encoders
@@ -93,13 +97,13 @@ library
     YIBP.Scheduler.Scheduler
     YIBP.Scheduler.Util
     YIBP.Server
-    YIBP.Server.Auth
     YIBP.Server.PollTemplate
     YIBP.Server.Receiver
     YIBP.Server.Rule
     YIBP.Server.Sender
+    YIBP.Server.Session
     YIBP.Server.User
-    YIBP.Service.Auth
+    YIBP.Service.Session
     YIBP.Service.User
     YIBP.ToDomain
     YIBP.Util
@@ -137,6 +141,7 @@ library
     , base                  ^>=4.17.1.0
     , bytestring
     , containers
+    , contravariant-extras
     , cookie
     , cron
     , deriving-aeson
