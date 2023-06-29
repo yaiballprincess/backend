@@ -24,7 +24,7 @@ spec:
     name: yaiballprincess-db
     ports:
     - containerPort: 5432
-      hostPort: 5432
+      hostPort: 5433
     stdin: true
     tty: true
     volumeMounts:
