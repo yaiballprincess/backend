@@ -2,7 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module YIBP.Server.Auth (AuthAPI (..), theAuthAPI, AuthData (..), withAuth, withAuth') where
+module YIBP.Server.Auth (AuthAPI (..), theAuthAPI, withAuth, withAuth') where
 
 import Control.Monad.IO.Class
 

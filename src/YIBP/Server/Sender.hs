@@ -17,9 +17,8 @@ import Control.Monad.IO.Class
 
 import YIBP.App
 import YIBP.Core.Sender
-import YIBP.Db.Sender
 import YIBP.Db
-import YIBP.Server.Auth (AuthData, withAuth)
+import YIBP.Db.Sender
 
 import Optics
 
@@ -64,7 +63,7 @@ addHandler req = do
     Just _id -> pure _id
     Nothing -> throwError err400
 
-allHandler :: WithDb => Handler (V.Vector AllSenderUnitResponse)
+allHandler :: (WithDb) => Handler (V.Vector AllSenderUnitResponse)
 allHandler = V.map (\(i, n) -> AllSenderUnitResponse i n) <$> liftIO getAllSenders
 
 removeHandler :: (WithDb) => Int -> Handler NoContent
@@ -75,11 +74,12 @@ removeHandler _id = do
 editHandler :: (WithDb) => EditSenderRequest -> Handler NoContent
 editHandler req = do
   isSuccess <-
-    liftIO $ updateSender
-      (req ^. #id)
-      UpdateSenderPayload
-        { newName = req ^. #newName
-        , newAccessToken = req ^. #newAccessToken
-        , newBotAccessToken = req ^. #newBotAccessToken
-        }
+    liftIO $
+      updateSender
+        (req ^. #id)
+        UpdateSenderPayload
+          { newName = req ^. #newName
+          , newAccessToken = req ^. #newAccessToken
+          , newBotAccessToken = req ^. #newBotAccessToken
+          }
   if isSuccess then pure NoContent else throwError err400
