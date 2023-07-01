@@ -14,17 +14,16 @@ import Optics
 import Control.Concurrent
 import Data.Vector qualified as V
 import GHC.Generics
+import Hasql.Connection
 import Hasql.Connection qualified as Connection
 import Servant.Auth.Server (defaultCookieSettings, defaultJWTSettings)
 import Servant.Auth.Server.Internal.AddSetCookie
 import YIBP.App
-import YIBP.Config 
+import YIBP.Config
+import YIBP.Db
 import YIBP.Db.Receiver
 import YIBP.Scheduler.Scheduler
 import YIBP.Server
-import Hasql.Connection
-import YIBP.Db
-
 
 runWithScheduler :: Scheduler -> ((WithScheduler) => IO a) -> IO a
 runWithScheduler sc a = let ?scheduler = sc in a
@@ -51,8 +50,8 @@ runApp = do
   Right conn <- Connection.acquire connSettings
   scheduler <- mkScheduler
   runWithConfig config $ runWithDb conn $ runWithScheduler scheduler $ do
-    _ <- forkIO runScheduler 
-    _ <- forkIO initScheduler 
+    _ <- forkIO runScheduler
+    _ <- forkIO initScheduler
     run 8080 $
       genericServeTWithContext
         id
