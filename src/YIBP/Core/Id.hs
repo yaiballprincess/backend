@@ -10,7 +10,13 @@ newtype Id a = Id Int
   deriving (Show, Eq, Generic)
   deriving newtype (FromJSON, ToJSON, FromHttpApiData)
 
-data IdObject a = IdObject (Id a) a
+idToInt :: Id a -> Int
+idToInt (Id x) = x
+
+data IdObject a = IdObject
+  { id :: !(Id a)
+  , value :: !a
+  }
   deriving (Show, Eq)
 
 instance ToJSON a => ToJSON (IdObject a) where
