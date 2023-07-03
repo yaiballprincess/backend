@@ -79,6 +79,8 @@ library
     YIBP.Core.Sender
     YIBP.Core.Session
     YIBP.Core.User
+    YIBP.Crypto
+    YIBP.Crypto.TH
     YIBP.Db
     YIBP.Db.Id.Decoders
     YIBP.Db.Id.Encoders
@@ -148,12 +150,15 @@ library
     , contravariant-extras
     , cookie
     , cron
+    , cryptonite
     , deriving-aeson
     , exceptions
+    , file-embed
     , fmt
     , hasql                 ==1.6.3
     , hasql-th
     , jose
+    , memory
     , mtl
     , optics
     , optics-core
@@ -165,6 +170,7 @@ library
     , servant-auth-server
     , servant-server
     , stm
+    , template-haskell
     , text
     , time
     , transformers
