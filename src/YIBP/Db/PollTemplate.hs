@@ -1,16 +1,17 @@
-module YIBP.Db.PollTemplate
-  ( insertPollTemplate
-  , PollTemplate (..)
-  , insertPollTemplateOption
-  , PollTemplateUpdate (..)
-  , updatePollTemplate
-  , updatePollTemplateOption
-  , deletePollTemplate
-  , deletePollTemplateOption
-  , getAll
-  , PollTemplateGet (..)
-  , getPollTemplatesByIds
-  ) where
+{-# LANGUAGE OverloadedStrings #-}
+
+module YIBP.Db.PollTemplate where
+
+import Hasql.Decoders qualified as Decoders
+import Hasql.Encoders qualified as Encoders
+import Hasql.Session qualified as Session
+import Hasql.Statement
+import YIBP.Db
+
+import Data.Vector qualified as V
+import GHC.Stack
+import YIBP.Core.PollTemplate qualified as Core'
+import YIBP.Db.PollTemplate.Decoders
 
 import Hasql.Session qualified as Session
 import Hasql.Statement
@@ -28,7 +29,13 @@ import Data.Vector qualified as V
 import GHC.Generics
 import GHC.Stack
 
+import Contravariant.Extras
 import Optics
+import YIBP.Core.Id
+import YIBP.Db.Id.Decoders
+import YIBP.Db.Id.Encoders
+import YIBP.Db.PollTemplate.Encoders
+import YIBP.Db.PollTemplate.Types
 
 data PollTemplate = PollTemplate
   { isMultiple :: !Bool
@@ -45,18 +52,135 @@ data PollTemplateUpdate = PollTemplateUpdate
   }
   deriving (Show, Eq, Generic)
 
+getAllPollTemplates :: (WithDb, HasCallStack) => IO (V.Vector Core'.PollTemplateFull)
+getAllPollTemplates = withConn $ Session.run (Session.statement () stmt)
+  where
+    stmt =
+      Statement
+        "select pt.id, pt.is_multiple, pt.is_anonymous, pt.duration, pt.question, \
+        \array_agg(po.id), array_agg(po.data) \
+        \from \"poll_template\" as pt \
+        \inner join \"poll_template_option\" po ON po.poll_template_id = pt.id \
+        \group by pt.id"
+        Encoders.noParams
+        (Decoders.rowVector pollTemplateFullRow)
+        True
+
+insertPollTemplate'
+  :: (WithDb, HasCallStack)
+  => InsertPollTemplateParams
+  -> IO (Id Core'.PollTemplate)
+insertPollTemplate' params = withConn $ Session.run (Session.statement params stmt)
+  where
+    stmt =
+      Statement
+        "insert into \"poll_template\" \
+        \(is_multiple, is_anonymous, duration, question) values \
+        \values ($1, $2, $3, $4) \
+        \returning id"
+        insertPollTemplateParams
+        (Decoders.singleRow idRow)
+        True
+
+insertPollTemplateOption'
+  :: (WithDb, HasCallStack)
+  => Id Core'.PollTemplate
+  -> Core'.PollTemplateOption
+  -> IO (Id Core'.PollTemplateOption)
+insertPollTemplateOption' ptId (Core'.PollTemplateOption po) =
+  withConn $ Session.run (Session.statement (ptId, po) stmt)
+  where
+    stmt =
+      Statement
+        "insert into \"poll_template_option\" \
+        \(poll_template_id, data) values ($1, $2) \
+        \ returning id"
+        ( contrazip2
+            idParams
+            (Encoders.param (Encoders.nonNullable Encoders.text))
+        )
+        (Decoders.singleRow idRow)
+        True
+
+updatePollTemplate'
+  :: (WithDb, HasCallStack)
+  => UpdatePollTemplateParams
+  -> IO Bool
+updatePollTemplate' params =
+  withConn $ Session.run ((== 1) <$> Session.statement params stmt)
+  where
+    stmt =
+      Statement
+        "update \"poll_template\" set \
+        \is_multiple = $2, is_anonymous = $3, \
+        \duration = $4, question = $5 \
+        \where id = $1"
+        updatePollTemplateParams
+        Decoders.rowsAffected
+        True
+
+updatePollTemplateOption'
+  :: (WithDb, HasCallStack)
+  => Id Core'.PollTemplate
+  -> Id Core'.PollTemplateOption
+  -> Core'.PollTemplateOption
+  -> IO Bool
+updatePollTemplateOption' ptId ptoId (Core'.PollTemplateOption text) =
+  withConn $ Session.run ((== 1) <$> Session.statement (ptId, ptoId, text) stmt)
+  where
+    stmt =
+      Statement
+        "update \"poll_template_option\" set \
+        \data = $3 \
+        \where poll_template_id = $1 AND id = $2"
+        ( contrazip3
+            idParams
+            idParams
+            (Encoders.param (Encoders.nonNullable Encoders.text))
+        )
+        Decoders.rowsAffected
+        True
+
+deletePollTemplate' :: (WithDb, HasCallStack) => Id Core'.PollTemplate -> IO Bool
+deletePollTemplate' ptId =
+  withConn $ Session.run ((== 1) <$> Session.statement ptId stmt)
+  where
+    stmt =
+      Statement
+        "delete from \"poll_template\" where id = $1"
+        idParams
+        Decoders.rowsAffected
+        True
+
+deletePollTemplateOption'
+  :: (WithDb, HasCallStack)
+  => Id Core'.PollTemplate
+  -> Id Core'.PollTemplateOption
+  -> IO Bool
+deletePollTemplateOption' ptId ptoId =
+  withConn $ Session.run ((== 1) <$> Session.statement (ptId, ptoId) stmt)
+  where
+    stmt =
+      Statement
+        "delete from \"poll_template_option\" \
+        \where poll_template_id = $1 AND id = $2"
+        (contrazip2 idParams idParams)
+        Decoders.rowsAffected
+        True
+
 insertPollTemplate :: (WithDb, HasCallStack) => PollTemplate -> IO (Maybe Int)
 insertPollTemplate tmpl = do
-  fmap fromIntegral <$> withConn
-    ( Session.run
-        ( Session.statement
-            ( tmpl ^. #isMultiple
-            , tmpl ^. #isAnonymous
-            , tmpl ^. #endsAt
-            )
-            stmt
-        )
-    )
+  fmap fromIntegral
+    <$> withConn
+      ( Session.run
+          ( Session.statement
+              ( tmpl ^. #isMultiple
+              , tmpl ^. #isAnonymous
+              , tmpl ^. #endsAt
+              )
+              stmt
+          )
+      )
   where
     stmt :: Statement (Bool, Bool, Maybe UTCTime) (Maybe Int32)
     stmt =
@@ -68,10 +192,11 @@ insertPollTemplate tmpl = do
 
 insertPollTemplateOption :: (WithDb, HasCallStack) => Int -> T.Text -> IO (Maybe Int)
 insertPollTemplateOption pollTemplateId text = do
-  fmap fromIntegral <$> withConn
-    ( Session.run
-        (Session.statement (fromIntegral pollTemplateId, text) stmt)
-    )
+  fmap fromIntegral
+    <$> withConn
+      ( Session.run
+          (Session.statement (fromIntegral pollTemplateId, text) stmt)
+      )
   where
     stmt :: Statement (Int32, T.Text) (Maybe Int32)
     stmt =
@@ -198,7 +323,8 @@ getPollTemplatesByIds ids = do
                   , options = options
                   }
               )
-          ) vec
+          )
+          vec
   where
     stmt :: Statement (V.Vector Int32) (V.Vector (Int32, Bool, Bool, Maybe UTCTime, V.Vector T.Text))
     stmt =
