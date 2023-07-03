@@ -1,77 +1,58 @@
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module YIBP.Server.PollTemplate (PollTemplateAPI, thePollTemplateAPI) where
 
-import Data.Aeson
-import Data.Text qualified as T
-import Data.Time
 import Data.Vector qualified as V
 
 import Servant
 import Servant.Server.Generic
 
-import YIBP.App
-import YIBP.Db.PollTemplate
-import YIBP.Util.WithId
+import YIBP.Core.PollTemplate
 
-import GHC.Generics (Generic)
-
-import Optics
-
+import Control.Monad.Catch (catch)
 import Control.Monad.Except
 import Deriving.Aeson
+import YIBP.Core.Id
 import YIBP.Db
-
-data PollTemplateAddRequest = PollTemplateAddRequest
-  { isMultiple :: !Bool
-  , isAnonymous :: !Bool
-  , endsAt :: !(Maybe UTCTime)
-  }
-  deriving (Show, Eq, Generic)
-  deriving (FromJSON, ToJSON) via CustomJSON '[OmitNothingFields] PollTemplateAddRequest
-
-data PollTemplateEditRequest = PollTemplateEditRequest
-  { pollTemplateId :: !Int
-  , isMultiple :: !(Maybe Bool)
-  , isAnonymous :: !(Maybe Bool)
-  , endsAt :: !(Maybe UTCTime)
-  }
-  deriving (Show, Eq, Generic)
-  deriving (FromJSON, ToJSON) via CustomJSON '[OmitNothingFields] PollTemplateEditRequest
-
-data PollTemplateAddOptionRequest = PollTemplateAddOptionRequest
-  { pollTemplateId :: !Int
-  , text :: !T.Text
-  }
-  deriving (Show, Eq, Generic, FromJSON, ToJSON)
-
-data PollTemplateEditOptionRequest = PollTemplateEditOptionRequest
-  { pollTemplateOptionId :: !Int
-  , text :: !T.Text
-  }
-  deriving (Show, Eq, Generic, FromJSON, ToJSON)
-
-data PollTemplateGetResponse = PollTemplateGetResponse
-  { pollTemplateId :: !Int
-  , isMultiple :: !Bool
-  , isAnonymous :: !Bool
-  , endsAt :: !(Maybe UTCTime)
-  , options :: !(V.Vector (WithId T.Text))
-  }
-  deriving (Show, Eq, Generic, FromJSON, ToJSON)
-
-type PollTemplateId = Int
-type PollTemplateOptionId = Int
+import YIBP.Service.PollTemplate qualified as Service
+import YIBP.Error
 
 data PollTemplateAPI route = PollTemplateAPI
-  { _add :: route :- "add" :> ReqBody '[JSON] PollTemplateAddRequest :> Post '[JSON] PollTemplateId
-  , _addOption :: route :- "add-option" :> ReqBody '[JSON] PollTemplateAddOptionRequest :> Post '[JSON] PollTemplateOptionId
-  , _edit :: route :- "edit" :> ReqBody '[JSON] PollTemplateEditRequest :> Post '[JSON] NoContent
-  , _editOption :: route :- "edit-option" :> ReqBody '[JSON] PollTemplateEditOptionRequest :> Post '[JSON] NoContent
-  , _remove :: route :- "remove" :> ReqBody '[JSON] PollTemplateId :> Post '[JSON] NoContent
-  , _removeOption :: route :- "remove-option" :> ReqBody '[JSON] PollTemplateOptionId :> Post '[JSON] NoContent
-  , _get :: route :- "get" :> Get '[JSON] (V.Vector PollTemplateGetResponse)
+  { _add
+      :: route
+        :- ReqBody '[JSON] CreatePollTemplate
+        :> Post '[JSON] (Id PollTemplate)
+  , _addOption
+      :: route
+        :- Capture "id" (Id PollTemplate)
+        :> "options"
+        :> ReqBody '[JSON] PollTemplateOption
+        :> Post '[JSON] (Id PollTemplateOption)
+  , _update
+      :: route
+        :- Capture "id" (Id PollTemplate)
+        :> ReqBody '[JSON] UpdatePollTemplate
+        :> Put '[JSON] NoContent
+  , _updateOption
+      :: route
+        :- Capture "id" (Id PollTemplate)
+        :> "options"
+        :> Capture "option-id" (Id PollTemplateOption)
+        :> ReqBody '[JSON] PollTemplateOption
+        :> Put '[JSON] NoContent
+  , _remove
+      :: route
+        :- Capture "id" (Id PollTemplate)
+        :> Delete '[JSON] NoContent
+  , _removeOption
+      :: route
+        :- Capture "id" (Id PollTemplate)
+        :> "options"
+        :> Capture "option-id" (Id PollTemplateOption)
+        :> Delete '[JSON] NoContent
+  , _get
+      :: route
+        :- Get '[JSON] (V.Vector PollTemplateFull)
   }
   deriving (Generic)
 
@@ -80,96 +61,44 @@ thePollTemplateAPI =
   PollTemplateAPI
     { _add = addHandler
     , _addOption = addOptionHandler
-    , _edit = editHandler
-    , _editOption = editOptionHandler
+    , _update = updateHandler
+    , _updateOption = updateOptionHandler
     , _remove = removeHandler
     , _removeOption = removeOptionHandler
     , _get = getHandler
     }
 
-addHandler
-  :: WithDb
-  => PollTemplateAddRequest
-  -> Handler PollTemplateId
-addHandler req = do
-  liftIO (insertPollTemplate
-    PollTemplate
-      { isMultiple = req ^. #isMultiple
-      , isAnonymous = req ^. #isAnonymous
-      , endsAt = req ^. #endsAt
-      })
-    >>= \case
-      Nothing -> throwError err422
-      Just x -> pure x
+addHandler :: (WithDb) => CreatePollTemplate -> Handler (Id PollTemplate)
+addHandler crt = liftIO $ Service.createPollTemplate crt
 
-addOptionHandler
-  :: WithDb
-  => PollTemplateAddOptionRequest
-  -> Handler PollTemplateOptionId
-addOptionHandler req = do
-  liftIO (insertPollTemplateOption (req ^. #pollTemplateId) (req ^. #text)) >>= \case
-    Nothing -> throwError err422
-    Just x -> pure x
+addOptionHandler :: (WithDb) => Id PollTemplate -> PollTemplateOption -> Handler (Id PollTemplateOption)
+addOptionHandler ptId pto =
+  liftIO (Service.addPollTemplateOption ptId pto)
+    `catch` (\(_ :: Service.PollTemplateNotFound) -> raiseServantError (HttpError @Service.PollTemplateNotFound "poll template not found") err404)
 
-editHandler :: (WithDb) => PollTemplateEditRequest -> Handler NoContent
-editHandler req = do
-  liftIO
-    ( updatePollTemplate
-        PollTemplateUpdate
-          { pollTemplateId = req ^. #pollTemplateId
-          , isMultiple = req ^. #isMultiple
-          , isAnonymous = req ^. #isAnonymous
-          , endsAt = req ^. #endsAt
-          }
-    )
-    >>= \case
-      True -> pure NoContent
-      False -> throwError err422
+updateHandler :: (WithDb) => Id PollTemplate -> UpdatePollTemplate -> Handler NoContent
+updateHandler ptId upt = do
+  liftIO (Service.updatePollTemplate ptId upt)
+    `catch` (\(_ :: Service.PollTemplateNotFound) -> raiseServantError (HttpError @Service.PollTemplateNotFound "poll template not found") err404)    
+  pure NoContent
 
-editOptionHandler
-  :: (WithDb)
-  => PollTemplateEditOptionRequest
-  -> Handler NoContent
-editOptionHandler req = do
-  liftIO
-    ( updatePollTemplateOption
-        (req ^. #pollTemplateOptionId)
-        (req ^. #text)
-    )
-    >>= \case
-      True -> pure NoContent
-      False -> throwError err422
+updateOptionHandler :: (WithDb) => Id PollTemplate -> Id PollTemplateOption -> PollTemplateOption -> Handler NoContent
+updateOptionHandler ptId ptoId pto = do
+  liftIO (Service.updatePollTemplateOption ptId ptoId pto)
+    `catch` (\(_ :: Service.PollTemplateOptionNotFound) -> raiseServantError (HttpError @Service.PollTemplateOptionNotFound "poll template option not found") err404)
+  pure NoContent
 
-removeHandler
-  :: (WithDb)
-  => PollTemplateId
-  -> Handler NoContent
-removeHandler _id = do
-  liftIO (deletePollTemplate _id) >>= \case
-    True -> pure NoContent
-    False -> throwError err422
+removeHandler :: (WithDb) => Id PollTemplate -> Handler NoContent
+removeHandler ptId = do
+  liftIO (Service.removePollTemplate ptId)
+    `catch` (\(_ :: Service.PollTemplateNotFound) -> raiseServantError (HttpError @Service.PollTemplateNotFound "poll template not found") err404)        
+  pure NoContent
 
-removeOptionHandler
-  :: (WithDb)
-  => PollTemplateOptionId
-  -> Handler NoContent
-removeOptionHandler _id = do
-  liftIO (deletePollTemplateOption _id) >>= \case
-    True -> pure NoContent
-    False -> throwError err422
+removeOptionHandler :: (WithDb) => Id PollTemplate -> Id PollTemplateOption -> Handler NoContent
+removeOptionHandler ptId ptoId = do
+  liftIO (Service.removePollTemplateOption ptId ptoId)
+    `catch` (\(_ :: Service.PollTemplateOptionNotFound) -> raiseServantError (HttpError @Service.PollTemplateOptionNotFound "poll template option not found") err404)
+  pure NoContent
 
-getHandler
-  :: (WithDb)
-  => Handler (V.Vector PollTemplateGetResponse)
-getHandler = do
-  V.map
-    ( \(i, g) ->
-        PollTemplateGetResponse
-          { pollTemplateId = i
-          , isMultiple = g ^. #isMultiple
-          , isAnonymous = g ^. #isAnonymous
-          , endsAt = g ^. #endsAt
-          , options = V.map (uncurry WithId) (g ^. #options)
-          }
-    )
-    <$> liftIO getAll
+getHandler :: (WithDb) => Handler (V.Vector PollTemplateFull)
+getHandler = liftIO Service.getAllPollTemplates
