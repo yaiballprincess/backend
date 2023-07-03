@@ -15,10 +15,11 @@ CREATE TABLE "poll_template" (
   "id" SERIAL NOT NULL PRIMARY KEY,
   "is_multiple" BOOL NOT NULL,
   "is_anonymous" BOOL NOT NULL,
-  "duration" TIMESTAMP WITH TIME ZONE
+  "duration" TIMESTAMP WITH TIME ZONE,
+  "question" TEXT NOT NULL
 );
 
-CREATE TABLE "poll_option" (
+CREATE TABLE "poll_template_option" (
   "id" SERIAL NOT NULL PRIMARY KEY,
   "poll_template_id" INTEGER NOT NULL REFERENCES "poll_template" ON DELETE CASCADE,
   "data" TEXT NOT NULL
