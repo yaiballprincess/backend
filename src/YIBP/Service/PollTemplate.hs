@@ -24,35 +24,35 @@ createPollTemplate crt = do
           , endsAt = crt.endsAt
           , question = crt.question
           }
-  Db.insertPollTemplate' params
+  Db.insertPollTemplate params
 
 addPollTemplateOption :: (WithDb) => Id PollTemplate -> PollTemplateOption -> IO (Id PollTemplateOption)
 addPollTemplateOption ptId po =
-  Db.insertPollTemplateOption' ptId po
+  Db.insertPollTemplateOption ptId po
     `catch` (\(_ :: DbException) -> throwIO PollTemplateNotFound)
 
 updatePollTemplate :: (WithDb) => Id PollTemplate -> UpdatePollTemplate -> IO ()
 updatePollTemplate ptId upt = do
   let params = UpdatePollTemplateParams {id = ptId, isMultiple = upt.isMultiple, isAnonymous = upt.isAnonymous, endsAt = upt.endsAt, question = upt.question}
-  Db.updatePollTemplate' params >>= \case
+  Db.updatePollTemplate params >>= \case
     True -> pure ()
     False -> throwIO PollTemplateNotFound
 
 updatePollTemplateOption :: (WithDb) => Id PollTemplate -> Id PollTemplateOption -> PollTemplateOption -> IO ()
 updatePollTemplateOption ptId ptoId pto = do
-  Db.updatePollTemplateOption' ptId ptoId pto >>= \case
+  Db.updatePollTemplateOption ptId ptoId pto >>= \case
     True -> pure ()
     False -> throwIO PollTemplateOptionNotFound
 
 removePollTemplate :: (WithDb) => Id PollTemplate -> IO ()
 removePollTemplate ptId = do
-  Db.deletePollTemplate' ptId >>= \case
+  Db.deletePollTemplate ptId >>= \case
     True -> pure ()
     False -> throwIO PollTemplateNotFound
 
 removePollTemplateOption :: (WithDb) => Id PollTemplate -> Id PollTemplateOption -> IO ()
 removePollTemplateOption ptId ptoId = do
-  Db.deletePollTemplateOption' ptId ptoId >>= \case
+  Db.deletePollTemplateOption ptId ptoId >>= \case
     True -> pure ()
     False -> throwIO PollTemplateOptionNotFound
 

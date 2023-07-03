@@ -36,25 +36,16 @@ import Data.Vector qualified as V
 import System.Random
 
 import Control.Concurrent.STM
-import Control.Concurrent.STM.TMVar
-import Control.Concurrent.STM.TQueue
-import Control.Concurrent.STM.TVar
 
-import Control.Monad.IO.Unlift
-
-import YIBP.Core.Poll qualified as Core
+import YIBP.Core.PollTemplate qualified as Core
 import YIBP.Core.Rule
 import YIBP.Scheduler.Util
 
 import Control.Applicative
 import Control.Monad
 import GHC.Float.RealFracMethods
-import GHC.Generics
-import System.Timeout
 
 import Control.Concurrent
-import Control.Exception
-import Control.Monad.IO.Class
 
 import Optics
 
@@ -66,6 +57,7 @@ import YIBP.Db.Rule
 import YIBP.VK.Client
 import YIBP.VK.Types
 import YIBP.Db
+import YIBP.Core.Id
 
 type RuleId = Int
 type ExceptionRuleId = Int
@@ -156,14 +148,14 @@ runScheduler' queue = loop
           timeNow <- getCurrentTime
           tz <- getCurrentTimeZone
           loop
-            (Map.insert rid (getNextTime (rule ^. #cronRule) timeNow tz) nextTimeMap)
+            (Map.insert rid (getNextTime (rule.cronRule) timeNow tz) nextTimeMap)
             (Map.insert rid rule rulesMap)
             exceptionsMap
         Just (EditRegularRuleEvent rid rule) -> do
           timeNow <- getCurrentTime
           tz <- getCurrentTimeZone
           loop
-            (Map.insert rid (getNextTime (rule ^. #cronRule) timeNow tz) nextTimeMap)
+            (Map.insert rid (getNextTime (rule.cronRule) timeNow tz) nextTimeMap)
             (Map.insert rid rule rulesMap)
             exceptionsMap
         Just (RemoveRegularRuleEvent rid) ->
@@ -200,31 +192,31 @@ runScheduler' queue = loop
 
         tryFindException :: RuleId -> UTCTime -> Maybe ExceptionRule
         tryFindException rid t =
-          find (\er -> (er ^. #regularRuleId == rid) && (er ^. #sendAt == t)) (Map.elems exceptionsMap)
+          find (\er -> (er.regularRuleId == rid) && (er.sendAt == t)) (Map.elems exceptionsMap)
 
         processElement :: (RuleId, UTCTime) -> (RuleId, ReceiverId, PollTemplateId)
         processElement (rid, t) = case tryFindException rid t of
-          Just er -> (rid, er ^. #receiverId, er ^. #pollTemplateId)
+          Just er -> (rid, er.receiverId, er.pollTemplateId)
           Nothing ->
             let rule = rulesMap Map.! rid
-            in  (rid, rule ^. #receiverId, rule ^. #pollTemplateId)
+            in  (rid, rule.receiverId, rule.pollTemplateId)
 
     sendMessages :: [(ReceiverId, PollTemplateId)] -> IO ()
     sendMessages candidates = do
       receivers <- getReceiversWithSendersByIds receiverIds
-      templates <- getPollTemplatesByIds pollTemplateIds
+      templates <- IntMap.fromList . V.toList . V.map (\p -> (idToInt p.id, p)) <$> getPollTemplatesByIds pollTemplateIds
       forM_ candidates $ \(rid, tid) -> sendMessage (receivers IntMap.! rid) (templates IntMap.! tid)
       where
         receiverIds = V.fromList $ IntSet.toList (IntSet.fromList (map fst candidates))
-        pollTemplateIds = V.fromList $ IntSet.toList (IntSet.fromList (map snd candidates))
+        pollTemplateIds = V.map Id $ V.fromList $ IntSet.toList (IntSet.fromList (map snd candidates))
 
-    sendMessage :: (Receiver, Sender) -> Core.PollTemplate -> IO ()
+    sendMessage :: (Receiver, Sender) -> Core.PollTemplateFull -> IO ()
     sendMessage (receiver, sender) pollTemplate = do
       -- TODO: determine sender (bot) id while saving it
-      let vkClient = mkDefaultClient (sender ^. #accessToken)
-      ownerId <- traverse (getBotId . mkDefaultClient) (sender ^. #botAccessToken)
+      let vkClient = mkDefaultClient (sender.accessToken)
+      ownerId <- traverse (getBotId . mkDefaultClient) (sender.botAccessToken)
       (pollOwnerId, pollId) <- pollsCreate vkClient pollTemplate (negate <$> ownerId)
-      let client = maybe vkClient mkDefaultClient (sender ^. #botAccessToken)
+      let client = maybe vkClient mkDefaultClient (sender.botAccessToken)
       messagesSendMessage
         client
         (receiver ^. #peerId)
@@ -238,7 +230,7 @@ getBotId client =
       Just r -> pure $ r ^. #_id
       Nothing -> error "error while execution of groups.getById method"
 
-pollsCreate :: VKClient -> Core.PollTemplate -> Maybe Int -> IO (Int, Int)
+pollsCreate :: VKClient -> Core.PollTemplateFull -> Maybe Int -> IO (Int, Int)
 pollsCreate client pollTemplate ownerId = do
   -- curTime <- getCurrentTime
   -- let pollTitle = formatTime defaultTimeLocale "" curTime
@@ -246,15 +238,15 @@ pollsCreate client pollTemplate ownerId = do
     client
     "polls.create"
     ( patchParamsWithEndDate . patchParamsWithOwnerId $
-        [ mkPair "question" ("Poll" :: T.Text)
-        , mkPair "is_anonymous" (pollTemplate ^. #isAnonymous)
-        , mkPair "is_multiple" (pollTemplate ^. #isMultiple)
-        , mkPair "add_answers" $ norm (pollTemplate ^. #options)
+        [ mkPair "question" pollTemplate.question
+        , mkPair "is_anonymous" pollTemplate.isAnonymous
+        , mkPair "is_multiple" pollTemplate.isMultiple
+        , mkPair "add_answers" $ norm (V.map (\x -> x.value) pollTemplate.options)
         ]
     )
     >>= \case
       Left _ -> error "error while execution of polls.create method"
-      Right (WithResponse poll) -> pure (poll ^. #_ownerId, poll ^. #_id)
+      Right (WithResponse poll) -> pure (poll._ownerId, poll._id)
   where
     patchParamsWithOwnerId :: [(T.Text, T.Text)] -> [(T.Text, T.Text)]
     patchParamsWithOwnerId lst = case ownerId of
@@ -262,11 +254,11 @@ pollsCreate client pollTemplate ownerId = do
       Nothing -> lst
 
     patchParamsWithEndDate :: [(T.Text, T.Text)] -> [(T.Text, T.Text)]
-    patchParamsWithEndDate lst = case pollTemplate ^. #endsAt of
+    patchParamsWithEndDate lst = case pollTemplate.endsAt of
       Just t -> mkPair "end_date" (double2Int (realToFrac (utcTimeToPOSIXSeconds t))) : lst
       Nothing -> lst
 
-    norm :: V.Vector T.Text -> T.Text
+    norm :: V.Vector Core.PollTemplateOption -> T.Text
     norm v = T.decodeUtf8 $ BS.toStrict $ J.encode v
 
 messagesSendMessage :: VKClient -> Int -> T.Text -> IO ()
