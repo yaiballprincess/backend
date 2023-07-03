@@ -3,7 +3,7 @@ module YIBP.Core.PollTemplate
   , getPollTemplateOption
   , PollTemplate (..)
   , CreatePollTemplate (..)
-  , UpdatePollTemplate
+  , UpdatePollTemplate (..)
   , PollTemplateFull (..)
   ) where
 
@@ -15,7 +15,7 @@ import GHC.Generics
 import YIBP.Core.Id
 
 newtype PollTemplateOption = PollTemplateOption T.Text
-  deriving newtype (FromJSON, ToJSON)
+  deriving newtype (Show, FromJSON, ToJSON)
 
 getPollTemplateOption :: PollTemplateOption -> T.Text
 getPollTemplateOption (PollTemplateOption t) = t
@@ -37,6 +37,14 @@ data CreatePollTemplate = CreatePollTemplate
   }
   deriving (Generic, FromJSON, ToJSON)
 
+data UpdatePollTemplate = UpdatePollTemplate
+  { isMultiple :: !Bool
+  , isAnonymous :: !Bool
+  , endsAt :: !(Maybe UTCTime)
+  , question :: !T.Text
+  }
+  deriving (Generic, FromJSON, ToJSON)
+
 data PollTemplateFull = PollTemplateFull
   { id :: !(Id PollTemplate)
   , isMultiple :: !Bool
@@ -45,6 +53,4 @@ data PollTemplateFull = PollTemplateFull
   , question :: !T.Text
   , options :: !(V.Vector (IdObject PollTemplateOption))
   }
-  deriving (Generic, ToJSON)
-
-type UpdatePollTemplate = CreatePollTemplate
+  deriving (Show, Generic, ToJSON)
