@@ -73,6 +73,7 @@ library
     YIBP.Core.Auth
     YIBP.Core.Id
     YIBP.Core.Poll
+    YIBP.Core.PollTemplate
     YIBP.Core.Receiver
     YIBP.Core.Rule
     YIBP.Core.Sender
@@ -82,6 +83,9 @@ library
     YIBP.Db.Id.Decoders
     YIBP.Db.Id.Encoders
     YIBP.Db.PollTemplate
+    YIBP.Db.PollTemplate.Decoders
+    YIBP.Db.PollTemplate.Encoders
+    YIBP.Db.PollTemplate.Types
     YIBP.Db.Receiver
     YIBP.Db.Rule
     YIBP.Db.Sender
@@ -103,9 +107,9 @@ library
     YIBP.Server.Sender
     YIBP.Server.Session
     YIBP.Server.User
+    YIBP.Service.PollTemplate
     YIBP.Service.Session
     YIBP.Service.User
-    YIBP.ToDomain
     YIBP.Util
     YIBP.Util.WithId
     YIBP.Validate
