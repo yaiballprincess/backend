@@ -28,8 +28,10 @@ CREATE TABLE "poll_template_option" (
 CREATE TABLE "sender" (
   "id" SERIAL NOT NULL PRIMARY KEY,
   "name" TEXT NOT NULL UNIQUE,
-  "access_token" TEXT NOT NULL UNIQUE,
-  "bot_access_token" TEXT
+  "access_token_enc" bytea NOT NULL,
+  "bot_access_token_enc" bytea,
+  "bot_id" int,
+  CHECK ((bot_access_token_enc is null) = (bot_id is null))
 );
 
 CREATE TABLE "receiver" (
