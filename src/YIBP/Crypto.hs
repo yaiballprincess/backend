@@ -5,6 +5,8 @@ module YIBP.Crypto
   , Encrypted
   , encryptedToByteString
   , byteStringToEncrypted
+  , decrypt'
+  , decryptEncryptedRaw
   ) where
 
 import YIBP.Crypto.TH
@@ -44,6 +46,12 @@ encryptRandom :: (CRT.MonadRandom m) => BS.ByteString -> m Encrypted
 encryptRandom msg = do
   iv <- genRandomIV
   pure $ Encrypted iv (encrypt iv msg)
+
+decrypt' :: Encrypted -> BS.ByteString
+decrypt' (Encrypted iv bs) = decrypt iv bs
+
+decryptEncryptedRaw :: BS.ByteString -> BS.ByteString
+decryptEncryptedRaw = decrypt' . byteStringToEncrypted
 
 data Encrypted = Encrypted !(IV AES256) !BS.ByteString
 
