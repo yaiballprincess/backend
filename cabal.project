@@ -1,7 +1,0 @@
-packages: .
-
-source-repository-package
-  type: git
-  location: https://github.com/haskell-servant/servant.git
-  tag: e9d283a03f1098576d914fb046a058925b3d03ca
-  subdir: servant-auth/servant-auth-server
