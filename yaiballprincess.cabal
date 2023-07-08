@@ -165,7 +165,7 @@ library
     , optics-th
     , password
     , random
-    , servant               ==0.19.1
+    , servant               < 0.21
     , servant-auth
     , servant-auth-server
     , servant-server
