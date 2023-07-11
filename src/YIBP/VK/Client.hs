@@ -1,23 +1,30 @@
-{-# LANGUAGE FieldSelectors #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module YIBP.VK.Client (VKClient, mkClient, mkDefaultClient, mkPair, sendMethod, WithResponse (..)) where
+module YIBP.VK.Client
+  ( VKClient
+  , VKError (..)
+  , mkClient
+  , mkDefaultClient
+  , mkPair
+  , sendMethod
+  , WithResponse (..)
+  ) where
 
 import Data.Aeson
 import Data.Text qualified as T
 import Data.Vector qualified as V
 
-import Control.Monad.IO.Class (MonadIO, liftIO)
-
 import Data.Function
 import Network.Wreq
 
-import Optics
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Aeson.Optics
 
+import Optics
+
 data VKClient = VKClient
-  { vkClientAccessToken :: !T.Text
-  , vkVersion :: !T.Text
+  { accessToken :: !T.Text
+  , version :: !T.Text
   }
   deriving (Eq)
 
@@ -27,8 +34,6 @@ data VKError = VKError
   , requestParams :: !(V.Vector (T.Text, T.Text))
   }
   deriving (Show, Eq)
-
-makeFieldsNoPrefix ''VKError
 
 instance FromJSON VKError where
   parseJSON = withObject "VKError" $ \o -> do
@@ -64,10 +69,10 @@ class ConvertibleToPart a where
   convertToPart :: a -> T.Text
 
 instance ConvertibleToPart Int where
-  convertToPart = T.pack . show 
+  convertToPart = T.pack . show
 
 instance ConvertibleToPart Double where
-  convertToPart = T.pack . show 
+  convertToPart = T.pack . show
 
 instance ConvertibleToPart Bool where
   convertToPart True = "1"
@@ -92,8 +97,8 @@ sendMethod client methodName req = do
       postWith
         ( defaults
             & lensVL params
-              .~ [ ("access_token", vkClientAccessToken client)
-                 , ("v", vkVersion client)
+              .~ [ ("access_token", client.accessToken)
+                 , ("v", client.version)
                  ]
         )
         (T.unpack $ "https://api.vk.com/method/" <> methodName)
