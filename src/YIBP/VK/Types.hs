@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -14,35 +13,36 @@ module YIBP.VK.Types
   , VKPoll (..)
   ) where
 
-import Data.Aeson
+import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON), withText)
 import Data.Text qualified as T
 import Data.Vector qualified as V
 import Deriving.Aeson
-import Deriving.Aeson.Stock
-
-import Optics
+  ( CamelToSnake
+  , CustomJSON (CustomJSON)
+  , FieldLabelModifier
+  , Generic
+  , OmitNothingFields
+  )
 
 data VKUserFull = VKUserFull
-  { _firstName :: !(Maybe T.Text)
-  , _lastName :: !(Maybe T.Text)
-  , _id :: !Int
+  { firstName :: !(Maybe T.Text)
+  , lastName :: !(Maybe T.Text)
+  , id :: !Int
   }
   deriving (Eq, Show, Generic)
   deriving
     (FromJSON, ToJSON)
-    via CustomJSON '[OmitNothingFields, FieldLabelModifier '[StripPrefix "_", CamelToSnake]] VKUserFull
-
-makeFields ''VKUserFull
+    via CustomJSON '[OmitNothingFields, FieldLabelModifier '[CamelToSnake]] VKUserFull
 
 data VKGroupFull = VKGroupFull
-  { _id :: !Int
-  , _name :: !(Maybe T.Text)
-  , _screenName :: !(Maybe T.Text)
+  { id :: !Int
+  , name :: !(Maybe T.Text)
+  , screenName :: !(Maybe T.Text)
   }
   deriving (Eq, Show, Generic)
   deriving
     (FromJSON, ToJSON)
-    via CustomJSON '[OmitNothingFields, FieldLabelModifier '[StripPrefix "_", CamelToSnake]] VKGroupFull
+    via CustomJSON '[OmitNothingFields, FieldLabelModifier '[CamelToSnake]] VKGroupFull
 
 data VKConversationPeerType
   = VKConversationPeerChat
@@ -66,16 +66,14 @@ instance ToJSON VKConversationPeerType where
   toJSON VKConversationPeerGroup = "group"
 
 data VKConversationPeer = VKConversationPeer
-  { _id :: !Int
+  { id :: !Int
   , _type :: !VKConversationPeerType
-  , _localId :: !(Maybe Int)
+  , localId :: !(Maybe Int)
   }
   deriving (Eq, Show, Generic)
   deriving
     (FromJSON, ToJSON)
-    via CustomJSON '[OmitNothingFields, FieldLabelModifier '[StripPrefix "_", CamelToSnake]] VKConversationPeer
-
-makeFields ''VKConversationPeer
+    via CustomJSON '[OmitNothingFields, FieldLabelModifier '[CamelToSnake]] VKConversationPeer
 
 data VKChatSettings = VKChatSettings
   { ownerId :: !Int
@@ -87,8 +85,6 @@ data VKChatSettings = VKChatSettings
     (FromJSON, ToJSON)
     via CustomJSON '[OmitNothingFields, FieldLabelModifier '[CamelToSnake]] VKChatSettings
 
-makeFieldsNoPrefix ''VKChatSettings
-
 data VKConversation = VKConversation
   { peer :: !VKConversationPeer
   , lastMessageId :: !Int
@@ -99,8 +95,6 @@ data VKConversation = VKConversation
     (FromJSON, ToJSON)
     via CustomJSON '[OmitNothingFields, FieldLabelModifier '[CamelToSnake]] VKConversation
 
-makeFieldsNoPrefix ''VKConversation
-
 data VKConversationWithMessage = VKConversationWithMessage
   { conversation :: !VKConversation
   , lastMessage :: !()
@@ -109,8 +103,6 @@ data VKConversationWithMessage = VKConversationWithMessage
   deriving
     (FromJSON, ToJSON)
     via CustomJSON '[OmitNothingFields, FieldLabelModifier '[CamelToSnake]] VKConversationWithMessage
-
-makeFieldsNoPrefix ''VKConversationWithMessage
 
 data VKMessagesGetConversationsResponse = VKMessagesGetConversationsResponse
   { items :: !(V.Vector VKConversationWithMessage)
@@ -122,13 +114,11 @@ data VKMessagesGetConversationsResponse = VKMessagesGetConversationsResponse
     (FromJSON, ToJSON)
     via CustomJSON '[OmitNothingFields, FieldLabelModifier '[CamelToSnake]] VKMessagesGetConversationsResponse
 
-makeFieldsNoPrefix ''VKMessagesGetConversationsResponse
-
 data VKPoll = VKPoll
-  { _id :: !Int
-  , _ownerId :: !Int
+  { id :: !Int
+  , ownerId :: !Int
   }
   deriving (Eq, Show, Generic)
   deriving
     (FromJSON, ToJSON)
-    via CustomJSON '[FieldLabelModifier '[StripPrefix "_", CamelToSnake]] VKPoll
+    via CustomJSON '[FieldLabelModifier '[CamelToSnake]] VKPoll
