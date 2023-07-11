@@ -1,17 +1,15 @@
-{-# LANGUAGE DeriveAnyClass #-}
+module YIBP.Core.Receiver (Receiver (..), CreateReceiverParam (..)) where
 
-module YIBP.Core.Receiver (Receiver (..)) where
-
-import Data.Aeson
 import Data.Text qualified as T
+import Data.Aeson
 import GHC.Generics
-
-import Optics
 
 data Receiver = Receiver
   { name :: !T.Text
   , peerId :: !Int
   }
-  deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
-makeFieldsNoPrefix ''Receiver
+data CreateReceiverParam = CreateReceiverParam
+  { name :: !T.Text
+  , peerId :: !Int
+  } deriving (Generic, FromJSON, ToJSON)

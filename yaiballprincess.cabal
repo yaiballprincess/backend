@@ -91,6 +91,9 @@ library
     YIBP.Db.Receiver
     YIBP.Db.Rule
     YIBP.Db.Sender
+    YIBP.Db.Sender.Decoders
+    YIBP.Db.Sender.Encoders
+    YIBP.Db.Sender.Types
     YIBP.Db.Session
     YIBP.Db.Session.Decoders
     YIBP.Db.Session.Encoders
@@ -104,12 +107,12 @@ library
     YIBP.Scheduler.Util
     YIBP.Server
     YIBP.Server.PollTemplate
-    YIBP.Server.Receiver
     YIBP.Server.Rule
     YIBP.Server.Sender
     YIBP.Server.Session
     YIBP.Server.User
     YIBP.Service.PollTemplate
+    YIBP.Service.Sender
     YIBP.Service.Session
     YIBP.Service.User
     YIBP.Util
@@ -165,7 +168,7 @@ library
     , optics-th
     , password
     , random
-    , servant               < 0.21
+    , servant               <0.21
     , servant-auth
     , servant-auth-server
     , servant-server
