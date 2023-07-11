@@ -1,9 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module YIBP.Db.User (getUserById, getUserByUsername, insertUser, findUserByUsername) where
+module YIBP.Db.User (getUserById, getUserByUsername, insertUser) where
 
-import Data.ByteString qualified as BS
-import Data.Int
 import Data.Text qualified as T
 
 import GHC.Stack (HasCallStack)
@@ -12,9 +10,7 @@ import Hasql.Decoders qualified as Decoders
 import Hasql.Encoders qualified as Encoders
 import Hasql.Session qualified as Session
 import Hasql.Statement
-import Hasql.TH qualified as TH
 
-import Data.Bifunctor
 import YIBP.Core.Id
 import YIBP.Core.User
 import YIBP.Db
@@ -60,17 +56,3 @@ insertUser iu = do
         insertUserParams
         (Decoders.rowMaybe idRow)
         True
-
-findUserByUsername
-  :: (WithDb, HasCallStack)
-  => T.Text
-  -> IO (Maybe (Int, BS.ByteString))
-findUserByUsername username = do
-  fmap (first fromIntegral) <$> withConn (Session.run (Session.statement username stmt))
-  where
-    stmt :: Statement T.Text (Maybe (Int32, BS.ByteString))
-    stmt =
-      [TH.maybeStatement|
-        select ("id" :: int4), ("password" :: bytea) from "user" 
-        where "username" = ($1 :: text)
-      |]
