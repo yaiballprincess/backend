@@ -35,10 +35,10 @@ CREATE TABLE "sender" (
 );
 
 CREATE TABLE "receiver" (
-  "id" SERIAL NOT NULL PRIMARY KEY,
   "sender_id" INTEGER NOT NULL REFERENCES "sender" ON DELETE CASCADE,
   "name" TEXT NOT NULL,
-  "peer_id" INTEGER NOT NULL
+  "peer_id" INTEGER NOT NULL,
+  PRIMARY KEY (sender_id, peer_id)
 );
 
 CREATE TABLE "regular_rule" (
