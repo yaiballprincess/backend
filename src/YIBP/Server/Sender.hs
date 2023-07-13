@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module YIBP.Server.Sender (SenderAPI, theSenderAPI) where
 
 import Servant
@@ -11,6 +12,7 @@ import YIBP.Core.Id
 import YIBP.Core.Receiver
 import YIBP.Core.Sender
 import YIBP.Db
+import YIBP.Service.Receiver qualified as Service
 import YIBP.Service.Sender qualified as Service
 
 import Control.Monad.Catch (catch)
@@ -33,11 +35,15 @@ data SenderAPI route = SenderAPI
       :: route
         :- Capture "id" (Id SenderTag)
         :> ReqBody '[JSON] CreateReceiverParam
-        :> Post '[JSON] (Id Receiver)
+        :> Post '[JSON] NoContent
+  , _getReceivers
+      :: route
+        :- Capture "id" (Id SenderTag)
+        :> Get '[JSON] (V.Vector Receiver)
   , _removeReceiver
       :: route
         :- Capture "id" (Id SenderTag)
-        :> Capture "receiver-id" (Id Receiver)
+        :> Capture "peer-id" PeerIdParam
         :> Delete '[JSON] NoContent
   }
   deriving (Generic)
@@ -49,6 +55,7 @@ theSenderAPI =
     , _removeSender = removeSenderHandler
     , _getSenders = getSendersHandler
     , _addReceiver = addReceiverHandler
+    , _getReceivers = getReceiversHandler
     , _removeReceiver = removeReceiverHandler
     }
 
@@ -60,13 +67,26 @@ addSenderHandler csp =
     `catch` (\Service.SenderConflict -> raiseServantError (HttpError @Service.SenderConflict "Such sender already exists") err409)
 
 removeSenderHandler :: (WithDb) => Id SenderTag -> Handler NoContent
-removeSenderHandler = undefined
+removeSenderHandler senderId = do
+  liftIO (Service.removeSender senderId)
+    `catch` (\Service.SenderDoesNotExist -> raiseServantError (HttpError @Service.SenderDoesNotExist "Sender with such id does not exist") err404)
+  pure NoContent
 
 getSendersHandler :: (WithDb) => Handler (V.Vector SenderTrimmed)
-getSendersHandler = undefined
+getSendersHandler = liftIO Service.getSendersTrimmed
 
-addReceiverHandler :: (WithDb) => Id SenderTag -> CreateReceiverParam -> Handler (Id Receiver)
-addReceiverHandler = undefined
+addReceiverHandler :: (WithDb) => Id SenderTag -> CreateReceiverParam -> Handler NoContent
+addReceiverHandler senderId crp = do
+  liftIO (Service.createReceiver senderId crp)
+    `catch` (\Service.SenderDoesNotExist -> raiseServantError (HttpError @Service.SenderDoesNotExist "Sender with such id does not exist") err404)
+    `catch` (\Service.ReceiverConflict -> raiseServantError (HttpError @Service.ReceiverConflict "Receiver conflict") err409)
+  pure NoContent
 
-removeReceiverHandler :: (WithDb) => Id SenderTag -> Id Receiver -> Handler NoContent
-removeReceiverHandler = undefined
+getReceiversHandler :: (WithDb) => Id SenderTag -> Handler (V.Vector Receiver)
+getReceiversHandler = undefined
+
+removeReceiverHandler :: (WithDb) => Id SenderTag -> PeerIdParam -> Handler NoContent
+removeReceiverHandler senderId (PeerIdParam peerId) = do
+  liftIO (Service.removeReceiver senderId peerId)
+    `catch` (\Service.ReceiverDoesNotExist -> raiseServantError (HttpError @Service.ReceiverDoesNotExist "Receiver does not exist") err404)
+  pure NoContent

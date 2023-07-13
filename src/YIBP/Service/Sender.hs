@@ -102,6 +102,15 @@ createSender csp = do
       Just v -> pure v
       Nothing -> throwIO SenderConflict
 
+data SenderDoesNotExist = SenderDoesNotExist
+  deriving (Show, Eq, Exception)
+
+removeSender :: (WithDb) => Id SenderTag -> IO ()
+removeSender senderId = do
+  Db.deleteSender senderId >>= \case
+    True -> pure ()
+    False -> throwIO SenderDoesNotExist
+
 getSendersTrimmed :: (WithDb) => IO (V.Vector SenderTrimmed)
 getSendersTrimmed =
   V.map
