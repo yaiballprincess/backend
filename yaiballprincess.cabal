@@ -89,6 +89,9 @@ library
     YIBP.Db.PollTemplate.Encoders
     YIBP.Db.PollTemplate.Types
     YIBP.Db.Receiver
+    YIBP.Db.Receiver.Decoders
+    YIBP.Db.Receiver.Encoders
+    YIBP.Db.Receiver.Types
     YIBP.Db.Rule
     YIBP.Db.Sender
     YIBP.Db.Sender.Decoders
@@ -116,6 +119,7 @@ library
     YIBP.Service.Sender
     YIBP.Service.Session
     YIBP.Service.User
+    YIBP.Service.VK
     YIBP.Util
     YIBP.Util.WithId
     YIBP.Validate

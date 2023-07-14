@@ -6,6 +6,7 @@ import YIBP.Db
 
 import YIBP.Core.Id
 import YIBP.Core.Sender
+import YIBP.Core.Receiver
 
 import YIBP.Db.Id.Encoders
 
@@ -20,6 +21,7 @@ import Hasql.Statement
 
 import Contravariant.Extras.Contrazip
 import Data.Functor.Contravariant
+import Data.Vector qualified as V
 
 insertReceiver :: (WithDb) => InsertReceiver -> IO Bool
 insertReceiver ir = withConn $ Session.run ((== 1) <$> Session.statement ir stmt)
@@ -30,6 +32,16 @@ insertReceiver ir = withConn $ Session.run ((== 1) <$> Session.statement ir stmt
         \ ($1, $2, $3) on conflict do nothing"
         insertReceiverParams
         D.rowsAffected
+        True
+
+getReceiversOfSender :: WithDb => Id SenderTag -> IO (V.Vector Receiver)
+getReceiversOfSender senderId = withConn $ Session.run (Session.statement senderId stmt)
+  where
+    stmt =
+      Statement
+        "select name, peer_id from \"receiver\" where sender_id = $1"
+        idParams
+        (D.rowVector receiverRow)
         True
 
 deleteReceiver :: (WithDb) => Id SenderTag -> Int -> IO Bool

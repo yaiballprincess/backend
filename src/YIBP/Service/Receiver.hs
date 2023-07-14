@@ -16,6 +16,8 @@ import YIBP.Db.Sender.Types
 
 import Control.Exception (Exception, throwIO)
 
+import Data.Vector qualified as V
+
 data ReceiverConflict = ReceiverConflict
   deriving (Show, Eq, Exception)
 
@@ -35,13 +37,17 @@ createReceiver senderId crp = do
           , bot = fmap (\raw -> BotSender {accessToken = raw.accessToken, id = raw.id}) rawSender.bot
           }
   let sender = decryptSender encryptedSender
-  name <- getNameByPeerId (mkDefaultClient sender.accessToken) ((.id) <$> sender.bot) crp.peerId
+  name <- getNameByPeerId sender crp.peerId
   let ir = InsertReceiver {senderId = senderId, name = name, peerId = crp.peerId}
   insertReceiver ir >>= \case
     True -> pure ()
     False -> throwIO ReceiverConflict
 
-removeReceiver :: WithDb => Id SenderTag -> Int -> IO ()
-removeReceiver senderId peerId = deleteReceiver senderId peerId >>= \case
-  True -> pure ()
-  False -> throwIO ReceiverDoesNotExist
+getReceivers :: (WithDb) => Id SenderTag -> IO (V.Vector Receiver)
+getReceivers = getReceiversOfSender
+
+removeReceiver :: (WithDb) => Id SenderTag -> Int -> IO ()
+removeReceiver senderId peerId =
+  deleteReceiver senderId peerId >>= \case
+    True -> pure ()
+    False -> throwIO ReceiverDoesNotExist

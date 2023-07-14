@@ -5,6 +5,7 @@ module YIBP.Core.Sender
   , InsertSender (..)
   , CreateSenderParam (..)
   , SenderTrimmed (..)
+  , getSenderToken
   ) where
 
 import YIBP.Crypto
@@ -44,3 +45,8 @@ data SenderTrimmed = SenderTrimmed
   , botName :: !(Maybe T.Text)
   }
   deriving (Generic, FromJSON, ToJSON)
+
+getSenderToken :: Sender 'Decrypted -> T.Text
+getSenderToken s = case s.bot of
+  Just x -> x.accessToken
+  Nothing -> s.accessToken
