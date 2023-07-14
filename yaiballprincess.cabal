@@ -72,7 +72,6 @@ library
     YIBP.Config
     YIBP.Core.Auth
     YIBP.Core.Id
-    YIBP.Core.Poll
     YIBP.Core.PollTemplate
     YIBP.Core.Receiver
     YIBP.Core.Rule
@@ -116,6 +115,7 @@ library
     YIBP.Server.User
     YIBP.Service.PollTemplate
     YIBP.Service.Receiver
+    YIBP.Service.Rule
     YIBP.Service.Sender
     YIBP.Service.Session
     YIBP.Service.User

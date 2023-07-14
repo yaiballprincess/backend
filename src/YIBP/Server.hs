@@ -19,7 +19,7 @@ import YIBP.Server.User
 data API route = API
   { _sender :: route :- Auth '[JWT] AuthData :> "api" :> "senders" :> NamedRoutes SenderAPI
   , _pollTemplate :: route :- Auth '[JWT] AuthData :> "api" :> "poll-templates" :> NamedRoutes PollTemplateAPI
-  , _rule :: route :- Auth '[JWT] AuthData :> "api" :> "rule" :> NamedRoutes RuleAPI
+  , _rule :: route :- Auth '[JWT] AuthData :> "api" :> "rules" :> NamedRoutes RuleAPI
   , _user :: route :- Auth '[JWT] AuthData :> "api" :> "users" :> NamedRoutes UserAPI
   , _session :: route :- "api" :> "sessions" :> NamedRoutes SessionAPI
   }
