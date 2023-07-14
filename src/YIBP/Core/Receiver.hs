@@ -8,7 +8,7 @@ import Servant
 data Receiver = Receiver
   { name :: !T.Text
   , peerId :: !Int
-  }
+  } deriving (Generic, FromJSON, ToJSON)
 
 newtype CreateReceiverParam = CreateReceiverParam
   { peerId :: Int
