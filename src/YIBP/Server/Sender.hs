@@ -83,7 +83,9 @@ addReceiverHandler senderId crp = do
   pure NoContent
 
 getReceiversHandler :: (WithDb) => Id SenderTag -> Handler (V.Vector Receiver)
-getReceiversHandler = undefined
+getReceiversHandler senderId =
+  liftIO (Service.getReceivers senderId)
+    `catch` (\Service.SenderDoesNotExist -> raiseServantError (HttpError @Service.SenderDoesNotExist "Sender with such id does not exist") err404)
 
 removeReceiverHandler :: (WithDb) => Id SenderTag -> PeerIdParam -> Handler NoContent
 removeReceiverHandler senderId (PeerIdParam peerId) = do
