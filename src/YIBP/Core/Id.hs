@@ -1,9 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module YIBP.Core.Id where
 
-import GHC.Generics
 import Data.Aeson
 import Data.Aeson.KeyMap qualified as J
+import GHC.Generics
 import Servant
 
 newtype Id a = Id Int
@@ -19,7 +20,7 @@ data IdObject a = IdObject
   }
   deriving (Show, Eq)
 
-instance ToJSON a => ToJSON (IdObject a) where
+instance (ToJSON a) => ToJSON (IdObject a) where
   toJSON (IdObject oId obj) = case toJSON obj of
     Object o -> toJSON $ J.insert "id" (toJSON oId) o
-    other -> object [ "id" .= oId, "value" .= other ]
+    other -> object ["id" .= oId, "value" .= other]
