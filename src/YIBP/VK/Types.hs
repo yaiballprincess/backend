@@ -11,6 +11,7 @@ module YIBP.VK.Types
   , VKConversationWithMessage (..)
   , VKMessagesGetConversationsResponse (..)
   , VKPoll (..)
+  , VKArray (..)
   ) where
 
 import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON), withText)
@@ -122,3 +123,9 @@ data VKPoll = VKPoll
   deriving
     (FromJSON, ToJSON)
     via CustomJSON '[FieldLabelModifier '[CamelToSnake]] VKPoll
+
+data VKArray a = VKArray
+  { count :: !Int
+  , items :: !(V.Vector a)
+  }
+  deriving (Eq, Show, Generic, FromJSON, ToJSON)
