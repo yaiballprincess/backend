@@ -7,6 +7,7 @@ module YIBP.VK.Client
   , mkDefaultClient
   , mkPair
   , sendMethod
+  , sendMethodUnsafe
   , WithResponse (..)
   ) where
 
@@ -22,6 +23,8 @@ import Data.Aeson.Optics
 
 import Optics
 
+import Control.Exception (Exception, throwIO)
+
 data VKClient = VKClient
   { accessToken :: !T.Text
   , version :: !T.Text
@@ -33,7 +36,7 @@ data VKError = VKError
   , errorMsg :: !T.Text
   , requestParams :: !(V.Vector (T.Text, T.Text))
   }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Exception)
 
 instance FromJSON VKError where
   parseJSON = withObject "VKError" $ \o -> do
@@ -110,3 +113,8 @@ sendMethod client methodName req = do
     Nothing -> case decode (rawResponse ^. lensVL responseBody) of
       Nothing -> error "failed to decode response"
       Just x -> pure $ Right x
+
+sendMethodUnsafe :: (FromJSON resp, MonadIO m) => VKClient -> T.Text -> [(T.Text, T.Text)] -> m resp
+sendMethodUnsafe c m r = sendMethod c m r >>= \case
+  Left err -> liftIO $ throwIO err
+  Right x -> pure x
