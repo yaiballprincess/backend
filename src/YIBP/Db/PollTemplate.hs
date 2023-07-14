@@ -4,18 +4,18 @@ module YIBP.Db.PollTemplate where
 
 import Hasql.Decoders qualified as Decoders
 import Hasql.Encoders qualified as Encoders
-import YIBP.Db.PollTemplate.Decoders
-import YIBP.Db.Id.Decoders
-import YIBP.Db.Id.Encoders
-import YIBP.Db.Id.Encoders qualified as Encoders
-import YIBP.Db.PollTemplate.Encoders
-import YIBP.Db.PollTemplate.Types
 import Hasql.Session qualified as Session
 import Hasql.Statement
 import YIBP.Db
+import YIBP.Db.Id.Decoders
+import YIBP.Db.Id.Encoders
+import YIBP.Db.Id.Encoders qualified as Encoders
+import YIBP.Db.PollTemplate.Decoders
+import YIBP.Db.PollTemplate.Encoders
+import YIBP.Db.PollTemplate.Types
 
-import Data.Vector qualified as V
 import Data.Time
+import Data.Vector qualified as V
 
 import GHC.Generics
 import GHC.Stack
@@ -24,21 +24,6 @@ import Contravariant.Extras
 
 import YIBP.Core.Id
 import YIBP.Core.PollTemplate qualified as Core
-
-data PollTemplate = PollTemplate
-  { isMultiple :: !Bool
-  , isAnonymous :: !Bool
-  , endsAt :: !(Maybe UTCTime)
-  }
-  deriving (Show, Eq, Generic)
-
-data PollTemplateUpdate = PollTemplateUpdate
-  { pollTemplateId :: !Int
-  , isMultiple :: !(Maybe Bool)
-  , isAnonymous :: !(Maybe Bool)
-  , endsAt :: !(Maybe UTCTime)
-  }
-  deriving (Show, Eq, Generic)
 
 getAllPollTemplates :: (WithDb, HasCallStack) => IO (V.Vector Core.PollTemplateFull)
 getAllPollTemplates = withConn $ Session.run (Session.statement () stmt)
