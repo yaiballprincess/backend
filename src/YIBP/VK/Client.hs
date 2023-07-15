@@ -6,6 +6,7 @@ module YIBP.VK.Client
   , mkClient
   , mkDefaultClient
   , mkPair
+  , (=--=)
   , sendMethod
   , sendMethodUnsafe
   , WithResponse (..)
@@ -92,6 +93,9 @@ instance (ConvertibleToPart a) => ConvertibleToPart (V.Vector a) where
 
 mkPair :: (ConvertibleToPart a) => T.Text -> a -> (T.Text, T.Text)
 mkPair lhs rhs = (lhs, convertToPart rhs)
+
+(=--=) :: (ConvertibleToPart a) => T.Text -> a -> (T.Text, T.Text)
+(=--=) = mkPair
 
 sendMethod :: (FromJSON resp, MonadIO m) => VKClient -> T.Text -> [(T.Text, T.Text)] -> m (Either VKError resp)
 sendMethod client methodName req = do
