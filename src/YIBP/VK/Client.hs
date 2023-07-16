@@ -122,9 +122,9 @@ sendMethod client methodName req = do
     Just err -> case fromJSON err of
       Error s -> error $ "unknown error: " <> s
       Success x -> pure $ Left x
-    Nothing -> case decode (rawResponse ^. lensVL responseBody) of
-      Nothing -> error "failed to decode response"
-      Just x -> pure $ Right x
+    Nothing -> case eitherDecode (rawResponse ^. lensVL responseBody) of
+      Left err -> error $ "failed to decode response: " <> err
+      Right x -> pure $ Right x
 
 sendMethodUnsafe :: (FromJSON resp, MonadIO m) => VKClient -> T.Text -> [(T.Text, T.Text)] -> m resp
 sendMethodUnsafe c m r = sendMethod c m r >>= \case
