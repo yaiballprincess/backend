@@ -31,9 +31,9 @@ getAllPollTemplates = withConn $ Session.run (Session.statement () stmt)
     stmt =
       Statement
         "select pt.id, pt.is_multiple, pt.is_anonymous, pt.duration, pt.question, \
-        \ array_agg(po.id), array_agg(po.data) \
+        \ array_remove(array_agg(po.id), NULL), array_remove(array_agg(po.data), NULL) \
         \ from \"poll_template\" as pt \
-        \ inner join \"poll_template_option\" po ON po.poll_template_id = pt.id \
+        \ left join \"poll_template_option\" po ON po.poll_template_id = pt.id \
         \ group by pt.id"
         Encoders.noParams
         (Decoders.rowVector pollTemplateFullRow)
@@ -48,7 +48,7 @@ insertPollTemplate params = withConn $ Session.run (Session.statement params stm
     stmt =
       Statement
         "insert into \"poll_template\" \
-        \ (is_multiple, is_anonymous, duration, question) values \
+        \ (is_multiple, is_anonymous, duration, question) \
         \ values ($1, $2, $3, $4) \
         \ returning id"
         insertPollTemplateParams
