@@ -34,15 +34,18 @@ data SenderAPI route = SenderAPI
   , _addReceiver
       :: route
         :- Capture "id" (Id SenderTag)
+        :> "receivers"
         :> ReqBody '[JSON] CreateReceiverParam
         :> Post '[JSON] NoContent
   , _getReceivers
       :: route
         :- Capture "id" (Id SenderTag)
+        :> "receivers"
         :> Get '[JSON] (V.Vector Receiver)
   , _removeReceiver
       :: route
         :- Capture "id" (Id SenderTag)
+        :> "receivers"
         :> Capture "peer-id" PeerIdParam
         :> Delete '[JSON] NoContent
   }
