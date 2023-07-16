@@ -92,6 +92,9 @@ library
     YIBP.Db.Receiver.Encoders
     YIBP.Db.Receiver.Types
     YIBP.Db.Rule
+    YIBP.Db.Rule.Decoders
+    YIBP.Db.Rule.Encoders
+    YIBP.Db.Rule.Types
     YIBP.Db.Sender
     YIBP.Db.Sender.Decoders
     YIBP.Db.Sender.Encoders
