@@ -11,7 +11,8 @@ import YIBP.Db.PollTemplate qualified as Db
 import YIBP.Db.Rule qualified as Db
 import YIBP.Db.Rule.Types
 import YIBP.Service.Sender qualified as Service
-import YIBP.Scheduler
+import YIBP.Scheduler (WithScheduler)
+import YIBP.Scheduler qualified as S
 
 import Data.Vector qualified as V
 import Control.Exception (Exception, throwIO)
@@ -43,20 +44,20 @@ getAllActiveRules = V.catMaybes . V.map tr <$> Db.getAllRules
 createRule :: (WithScheduler, WithDb) => Rule -> IO (Id Rule)
 createRule rule = do
   rId <- Db.insertRule rule
-  addRule rId rule
+  S.addRule rId rule
   pure rId
 
 updateRule :: (WithDb, WithScheduler) => Id Rule -> Rule -> IO ()
 updateRule rId rule = do
   Db.updateRule rId rule >>= \case
     False -> throwIO RuleDoesNotExist
-    True -> updateRule rId rule
+    True -> S.editRule rId rule
 
 deleteRule :: (WithDb, WithScheduler) => Id Rule -> IO ()
 deleteRule rId = do
   Db.deleteRule rId >>= \case
     False -> throwIO RuleDoesNotExist
-    True -> deleteRule rId
+    True -> S.removeRule rId
 
 getAllRules :: WithDb => IO (V.Vector (IdObject Rule))
 getAllRules = V.map tr <$> Db.getAllRulesCanTrigger
