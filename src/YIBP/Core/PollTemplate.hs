@@ -27,7 +27,7 @@ data PollTemplate = PollTemplate
   , question :: !T.Text
   , options :: !(V.Vector PollTemplateOption)
   }
-  deriving (Generic, FromJSON, ToJSON)
+  deriving (Generic, Show, FromJSON, ToJSON)
 
 data CreatePollTemplate = CreatePollTemplate
   { isMultiple :: !Bool

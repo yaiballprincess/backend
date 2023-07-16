@@ -19,13 +19,13 @@ data Rule = Rule
   { metadata :: !RuleMetadata
   , isActive :: !Bool
   }
-  deriving (Generic, FromJSON, ToJSON)
+  deriving (Show, Generic, FromJSON, ToJSON)
 
 data RuleMetadata
   = RMRegular !RegularRule
   | RMIgnore !IgnoreRule
   | RMReplace !ReplaceRule
-  deriving (Generic)
+  deriving (Show, Generic)
   deriving
     (FromJSON, ToJSON)
     via CustomJSON
@@ -41,20 +41,20 @@ data RegularRule = RegularRule
   , peerId :: !Int
   , pollTemplateId :: !(Id PollTemplate)
   }
-  deriving (Generic, FromJSON, ToJSON)
+  deriving (Show, Generic, FromJSON, ToJSON)
 
 data IgnoreRule = IgnoreRule
   { regularRuleId :: !(Id Rule)
   , sendAt :: !UTCTime
   }
-  deriving (Generic, FromJSON, ToJSON)
+  deriving (Show, Generic, FromJSON, ToJSON)
 
 data ReplaceRule = ReplaceRule
   { regularRuleId :: !(Id Rule)
   , sendAt :: !UTCTime
   , newPollTemplateId :: !(Id PollTemplate)
   }
-  deriving (Generic, FromJSON, ToJSON)
+  deriving (Show, Generic, FromJSON, ToJSON)
 
 data RegularRuleFull = RegularRuleFull
   { name :: !T.Text

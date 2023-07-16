@@ -21,11 +21,17 @@ data BotSender (s :: EncryptionStatus) = BotSender
   , id :: !Int
   }
 
+deriving instance Show (BotSender 'Decrypted)
+deriving instance Show (BotSender 'Encrypted)
+
 data Sender (s :: EncryptionStatus) = Sender
   { name :: !T.Text
   , accessToken :: !(CryptoText s)
   , bot :: !(Maybe (BotSender s))
-  }
+  } 
+
+deriving instance Show (Sender 'Decrypted)
+deriving instance Show (Sender 'Encrypted)
 
 data InsertSender = InsertSender
   { name :: !T.Text
