@@ -15,6 +15,8 @@ module YIBP.VK.Client
 import Data.Aeson
 import Data.Text qualified as T
 import Data.Vector qualified as V
+import Data.Time
+import Data.Time.Clock.POSIX
 
 import Data.Function
 import Network.Wreq
@@ -24,7 +26,10 @@ import Data.Aeson.Optics
 
 import Optics
 
+
 import Control.Exception (Exception, throwIO)
+
+import GHC.Float.RealFracMethods
 
 data VKClient = VKClient
   { accessToken :: !T.Text
@@ -90,6 +95,9 @@ instance ConvertibleToPart String where
 
 instance (ConvertibleToPart a) => ConvertibleToPart (V.Vector a) where
   convertToPart = T.intercalate "," . V.toList . V.map convertToPart
+
+instance ConvertibleToPart UTCTime where
+  convertToPart = convertToPart . double2Int . realToFrac . utcTimeToPOSIXSeconds
 
 mkPair :: (ConvertibleToPart a) => T.Text -> a -> (T.Text, T.Text)
 mkPair lhs rhs = (lhs, convertToPart rhs)
