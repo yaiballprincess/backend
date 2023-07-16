@@ -19,6 +19,7 @@ data SchedulerRuleEvent
   = AddRuleEvent RuleId Rule
   | EditRuleEvent RuleId Rule
   | RemoveRuleEvent RuleId
+  deriving Show
 
 newtype Scheduler = Scheduler (TQueue SchedulerRuleEvent)
 

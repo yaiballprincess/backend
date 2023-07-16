@@ -16,6 +16,7 @@ import YIBP.Scheduler qualified as S
 
 import Data.Vector qualified as V
 import Control.Exception (Exception, throwIO)
+import Control.Monad.IO.Class
 
 data RuleDoesNotExist = RuleDoesNotExist
   deriving (Show, Eq, Exception)

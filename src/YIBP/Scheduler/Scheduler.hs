@@ -25,7 +25,7 @@ import System.Random
 
 import Control.Applicative
 import Control.Concurrent.STM
-import Control.Exception (Exception, throwIO)
+import Control.Exception (SomeException, Exception, throwIO, catch)
 import Control.Monad
 
 import YIBP.Scheduler
@@ -77,22 +77,25 @@ runScheduler' = loop
     loop state = do
       curTime <- getCurrentTime
       let delay = getDelayToNearestEvent curTime state
+      putStrLn $ "Sleeping for " <> show delay <> " us [current time = " <> show curTime <> "]"
       doSTMWithTimeout delay (readTQueue queue) >>= \case
         Nothing -> onExecRule state >>= loop
-        Just ev -> onRuleEvent ev state >>= loop
+        Just ev -> do
+          putStrLn $ "Got new event: " <> show ev
+          onRuleEvent ev state >>= loop
 
 data Candidate = Candidate
   { ruleId :: !Int
   , senderId :: !(Id SenderTag)
   , peerId :: !Int
   , pollTemplateId :: !(Id PollTemplate)
-  }
+  } deriving Show
 
 data CandidateFull = CandidateFull
   { sender :: !(Sender 'Decrypted)
   , peerId :: !Int
   , pollTemplate :: !PollTemplate
-  }
+  } deriving Show
 
 getFullCandidate :: (WithDb) => Candidate -> IO (Maybe CandidateFull)
 getFullCandidate c = do
@@ -208,9 +211,13 @@ onExecRule state = do
   curTime <- getCurrentTime
   tz <- getCurrentTimeZone
   let candidates = getExecCandidates curTime state
+  putStrLn $ "Candidates: " <> show candidates
   fullCandidates <- V.forM candidates getFullCandidate
 
-  V.forM_ (V.catMaybes fullCandidates) sendMessage
+  V.forM_ (V.catMaybes fullCandidates) $ \c -> do
+    putStrLn $ "Sending message: " <> show c
+    sendMessage c
+      `catch` (\(e :: SomeException) -> putStrLn $ "Failed to send message of candidate " <> show c <> " with error: " <> show e)
 
   let idsToUpdate = IntSet.fromList $ V.toList $ V.map (.ruleId) candidates
   let obsoleteRules = getObsoleteRules curTime tz state
