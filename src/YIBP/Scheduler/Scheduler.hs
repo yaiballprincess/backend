@@ -25,7 +25,7 @@ import System.Random
 
 import Control.Applicative
 import Control.Concurrent.STM
-import Control.Exception (SomeException, Exception, throwIO, catch)
+import Control.Exception (Exception, SomeException, catch, throwIO)
 import Control.Monad
 
 import YIBP.Scheduler
@@ -48,7 +48,6 @@ import GHC.Float.RealFracMethods
 
 mkScheduler :: IO Scheduler
 mkScheduler = Scheduler <$> newTQueueIO
-
 
 doSTMWithTimeout :: Int -> STM a -> IO (Maybe a)
 doSTMWithTimeout n action = do
@@ -94,13 +93,15 @@ data Candidate = Candidate
   , senderId :: !(Id SenderTag)
   , peerId :: !Int
   , pollTemplateId :: !(Id PollTemplate)
-  } deriving Show
+  }
+  deriving (Show)
 
 data CandidateFull = CandidateFull
   { sender :: !(Sender 'Decrypted)
   , peerId :: !Int
   , pollTemplate :: !PollTemplate
-  } deriving Show
+  }
+  deriving (Show)
 
 getFullCandidate :: (WithDb) => Candidate -> IO (Maybe CandidateFull)
 getFullCandidate c = do
