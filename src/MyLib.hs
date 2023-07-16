@@ -15,6 +15,7 @@ import Hasql.Connection qualified as Connection
 import Servant.Auth.Server (defaultCookieSettings, defaultJWTSettings)
 import YIBP.Config
 import YIBP.Db
+import YIBP.Scheduler
 import YIBP.Scheduler.Scheduler
 import YIBP.Server
 

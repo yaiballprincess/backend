@@ -9,7 +9,7 @@ import Servant.Server.Generic
 import YIBP.Config
 import YIBP.Core.Auth
 import YIBP.Db
-import YIBP.Scheduler.Scheduler
+import YIBP.Scheduler
 import YIBP.Server.PollTemplate
 import YIBP.Server.Rule
 import YIBP.Server.Sender
