@@ -14,47 +14,42 @@ module YIBP.Scheduler.Scheduler
 
 import Data.Aeson qualified as J
 import Data.ByteString qualified as BS
+import Data.Function ((&))
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IntSet
-import Data.List
-import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as Map
-import Data.Set (Set)
+import Data.Maybe (catMaybes, isNothing)
 import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
 import Data.Time
-import Data.Time.Clock.POSIX
 import Data.Vector qualified as V
 
 import System.Random
 
+import Control.Applicative
 import Control.Concurrent.STM
+import Control.Exception (Exception, throwIO)
+import Control.Monad
 
 import YIBP.Scheduler.Util
 
-import Control.Applicative
-import Control.Monad
-import GHC.Float.RealFracMethods
-
-import Control.Concurrent
-
-import Optics
 
 import YIBP.Core.Id
 import YIBP.Core.PollTemplate
-import YIBP.Core.Receiver
 import YIBP.Core.Rule
 import YIBP.Core.Sender
 import YIBP.Crypto
 import YIBP.Db
-import YIBP.Db.PollTemplate
-import YIBP.Db.Receiver
-import YIBP.Db.Rule
-import YIBP.VK.Client
+import YIBP.Service.Rule qualified as Service
+import YIBP.VK.Client ((=--=))
+import YIBP.VK.Client qualified as VK
 import YIBP.VK.Types
+
+import Fmt
+
+import GHC.Float.RealFracMethods
 
 type RuleId = Int
 
@@ -117,7 +112,8 @@ runScheduler' = loop
         Just ev -> onRuleEvent ev state >>= loop
 
 data Candidate = Candidate
-  { senderId :: !(Id SenderTag)
+  { ruleId :: !Int
+  , senderId :: !(Id SenderTag)
   , peerId :: !Int
   , pollTemplateId :: !(Id PollTemplate)
   }
@@ -127,6 +123,12 @@ data CandidateFull = CandidateFull
   , peerId :: !Int
   , pollTemplate :: !PollTemplate
   }
+
+getFullCandidate :: WithDb => Candidate -> IO (Maybe CandidateFull)
+getFullCandidate c = do
+  fmap tr <$> Service.getDetailedRegularRule (c.senderId, c.pollTemplateId)
+  where
+    tr (s, pt) = CandidateFull { sender = s, peerId = c.peerId, pollTemplate = pt }
 
 getExecCandidates :: UTCTime -> SchedulerState -> V.Vector Candidate
 getExecCandidates curTime state =
@@ -153,36 +155,99 @@ getExecCandidates curTime state =
       Just replaceRule
         | replaceRule.sendAt == (state.nextTime IntMap.! rId) ->
             Candidate
-              { senderId = r.senderId
+              { ruleId = rId
+              , senderId = r.senderId
               , peerId = r.peerId
               , pollTemplateId = replaceRule.newPollTemplateId
               }
       _ ->
         Candidate
-          { senderId = r.senderId
+          { ruleId = rId
+          , senderId = r.senderId
           , peerId = r.peerId
           , pollTemplateId = r.pollTemplateId
           }
 
+newtype SendMessageError = SendMessageError T.Text
+  deriving (Show, Eq)
+  deriving anyclass (Exception)
+
+createPoll :: VK.VKClient -> PollTemplate -> Maybe Int -> IO (Maybe (Int, Int))
+createPoll client tmpl groupId = do
+  let options = V.map getPollTemplateOption tmpl.options
+  let params =
+        catMaybes
+          [ Just $ "question" =--= tmpl.question
+          , Just $ "is_anonymous" =--= tmpl.isAnonymous
+          , Just $ "is_multiple" =--= tmpl.isMultiple
+          , Just $ "add_answers" =--= T.decodeUtf8 (BS.toStrict $ J.encode options)
+          , ("owner_id" =--=) <$> groupId
+          , ("end_date" =--=) <$> tmpl.endsAt
+          ]
+  VK.sendMethod @(VK.WithResponse VKPoll) client "polls.create" params >>= \case
+    Left _ -> pure Nothing
+    Right (VK.WithResponse poll) -> pure $ Just (poll.ownerId, poll.id)
+
 sendMessage :: CandidateFull -> IO ()
-sendMessage = undefined
+sendMessage c = do
+  let userClient = VK.mkDefaultClient c.sender.accessToken
+  let senderClient = VK.mkDefaultClient (getSenderToken c.sender)
+  (ownerId, pollId) <-
+    createPoll userClient c.pollTemplate ((.id) <$> c.sender.bot) >>= \case
+      Nothing -> throwIO $ SendMessageError "unable to create poll template"
+      Just p -> pure p
+  let attachment :: T.Text = "poll" +| ownerId |+ "_" +| pollId |+ ""
+  randomId :: Int <- fst . randomR (1, maxBound) <$> newStdGen
+  VK.sendMethod @(VK.WithResponse ())
+    senderClient
+    "messages.send"
+    [ "peer_id" =--= c.peerId
+    , "attachment" =--= attachment
+    , "random_id" =--= randomId
+    ]
+    >>= \case
+      Left _ -> throwIO $ SendMessageError "unable to send message"
+      Right _ -> pure ()
 
-getObsoleteRules :: UTCTime -> SchedulerState -> IntSet
-getObsoleteRules = undefined
+getObsoleteRules :: UTCTime -> TimeZone -> SchedulerState -> IntSet
+getObsoleteRules curTime tz state =
+  obsoleteRegularRules `IntSet.union` obsoleteIgnoreRules `IntSet.union` obsoleteReplaceRules
+  where
+    obsoleteRegularRules =
+      IntMap.keysSet $
+        IntMap.filterWithKey (\_ v -> isNothing (calculateNextExecTime v.schedule curTime tz)) state.regularRules
+    obsoleteIgnoreRules =
+      IntMap.keysSet $
+        IntMap.filterWithKey (\_ v -> v.sendAt <= curTime) state.ignoreRules
+    obsoleteReplaceRules =
+      IntMap.keysSet $
+        IntMap.filterWithKey (\_ v -> v.sendAt <= curTime) state.replaceRules
 
-onExecRule :: (WithScheduler) => SchedulerState -> IO SchedulerState
+updateNextExecTime :: UTCTime -> TimeZone -> IntSet -> SchedulerState -> (IntSet, SchedulerState)
+updateNextExecTime curTime tz idsToUpdate state = IntMap.foldlWithKey' go (IntSet.empty, state) state.nextTime
+  where
+    sc i = (state.regularRules IntMap.! i).schedule
+    go (obsolete, s) i _
+      | i `IntSet.member` idsToUpdate = case calculateNextExecTime (sc i) curTime tz of
+          Just t -> (obsolete, s {nextTime = IntMap.insert i t s.nextTime})
+          Nothing -> (IntSet.insert i obsolete, s {nextTime = IntMap.delete i s.nextTime, regularRules = IntMap.delete i s.regularRules})
+      | otherwise = (obsolete, s)
+
+onExecRule :: (WithDb, WithScheduler) => SchedulerState -> IO SchedulerState
 onExecRule state = do
   curTime <- getCurrentTime
+  tz <- getCurrentTimeZone
   let candidates = getExecCandidates curTime state
-  fullCandidates <- V.forM candidates undefined
-  V.forM_ fullCandidates sendMessage
+  fullCandidates <- V.forM candidates getFullCandidate
 
-  let obsoleteRules = getObsoleteRules curTime state
-  forM_ (map Id (IntSet.toList obsoleteRules)) removeRule
+  V.forM_ (V.catMaybes fullCandidates) sendMessage
+
+  let idsToUpdate = IntSet.fromList $ V.toList $ V.map (.ruleId) candidates
+  let obsoleteRules = getObsoleteRules curTime tz state
+  let (obsoleteRegularRules, state') = updateNextExecTime curTime tz idsToUpdate state
+  forM_ (map Id (IntSet.toList (obsoleteRules `IntSet.union` obsoleteRegularRules))) removeRule
   -- set can_trigger = false
-  --
-  -- update nextTime (state')
-  undefined
+  pure state'
 
 onRuleEvent :: SchedulerRuleEvent -> SchedulerState -> IO SchedulerState
 onRuleEvent (AddRuleEvent rid (Rule (RMRegular rule) _)) state = do
@@ -258,102 +323,8 @@ getDelayToNearestEvent curTime m = case Set.lookupMin (Set.fromList (IntMap.elem
           else floorDoubleInt $ realToFrac diffTime * 1000000
   Nothing -> maxBound
 
---
---     getCandidates
---       :: UTCTime
---       -> Map RuleId UTCTime
---       -> Map RuleId RegularRule
---       -> Map ExceptionRuleId ExceptionRule
---       -> [(RuleId, ReceiverId, PollTemplateId)]
---     getCandidates curTime m rulesMap exceptionsMap = map processElement candidates
---       where
---         candidates = Map.assocs $ Map.filter (< curTime) m
---
---         tryFindException :: RuleId -> UTCTime -> Maybe ExceptionRule
---         tryFindException rid t =
---           find (\er -> (er.regularRuleId == rid) && (er.sendAt == t)) (Map.elems exceptionsMap)
---
---         processElement :: (RuleId, UTCTime) -> (RuleId, ReceiverId, PollTemplateId)
---         processElement (rid, t) = case tryFindException rid t of
---           Just er -> (rid, er.receiverId, er.pollTemplateId)
---           Nothing ->
---             let rule = rulesMap Map.! rid
---             in  (rid, rule.receiverId, rule.pollTemplateId)
---
---     sendMessages :: [(ReceiverId, PollTemplateId)] -> IO ()
---     sendMessages candidates = do
---       receivers <- getReceiversWithSendersByIds receiverIds
---       templates <- IntMap.fromList . V.toList . V.map (\p -> (idToInt p.id, p)) <$> getPollTemplatesByIds pollTemplateIds
---       forM_ candidates $ \(rid, tid) -> sendMessage (receivers IntMap.! rid) (templates IntMap.! tid)
---       where
---         receiverIds = V.fromList $ IntSet.toList (IntSet.fromList (map fst candidates))
---         pollTemplateIds = V.map Id $ V.fromList $ IntSet.toList (IntSet.fromList (map snd candidates))
---
---     sendMessage :: (Receiver, Sender) -> Core.PollTemplateFull -> IO ()
---     sendMessage (receiver, sender) pollTemplate = do
---       -- TODO: determine sender (bot) id while saving it
---       let vkClient = mkDefaultClient (sender.accessToken)
---       ownerId <- traverse (getBotId . mkDefaultClient) (sender.botAccessToken)
---       (pollOwnerId, pollId) <- pollsCreate vkClient pollTemplate (negate <$> ownerId)
---       let client = maybe vkClient mkDefaultClient (sender.botAccessToken)
---       messagesSendMessage
---         client
---         (receiver ^. #peerId)
---         ("poll" <> T.pack (show pollOwnerId) <> "_" <> T.pack (show pollId))
---
--- pollsCreate :: VKClient -> Core.PollTemplateFull -> Maybe Int -> IO (Int, Int)
--- pollsCreate client pollTemplate ownerId = do
---   -- curTime <- getCurrentTime
---   -- let pollTitle = formatTime defaultTimeLocale "" curTime
---   sendMethod @(WithResponse VKPoll)
---     client
---     "polls.create"
---     ( patchParamsWithEndDate . patchParamsWithOwnerId $
---         [ mkPair "question" pollTemplate.question
---         , mkPair "is_anonymous" pollTemplate.isAnonymous
---         , mkPair "is_multiple" pollTemplate.isMultiple
---         , mkPair "add_answers" $ norm (V.map (\x -> x.value) pollTemplate.options)
---         ]
---     )
---     >>= \case
---       Left _ -> error "error while execution of polls.create method"
---       Right (WithResponse poll) -> pure (poll._ownerId, poll._id)
---   where
---     patchParamsWithOwnerId :: [(T.Text, T.Text)] -> [(T.Text, T.Text)]
---     patchParamsWithOwnerId lst = case ownerId of
---       Just i -> mkPair "owner_id" i : lst
---       Nothing -> lst
---
---     patchParamsWithEndDate :: [(T.Text, T.Text)] -> [(T.Text, T.Text)]
---     patchParamsWithEndDate lst = case pollTemplate.endsAt of
---       Just t -> mkPair "end_date" (double2Int (realToFrac (utcTimeToPOSIXSeconds t))) : lst
---       Nothing -> lst
---
---     norm :: V.Vector Core.PollTemplateOption -> T.Text
---     norm v = T.decodeUtf8 $ BS.toStrict $ J.encode v
---
--- messagesSendMessage :: VKClient -> Int -> T.Text -> IO ()
--- messagesSendMessage client peerId attachments = do
---   g <- newStdGen
---   let (randomId :: Int, _) = randomR (1, maxBound) g
---   sendMethod @(WithResponse ())
---     client
---     "messages.send"
---     [ mkPair "peer_id" peerId
---     , mkPair "attachment" attachments
---     , mkPair "random_id" randomId
---     ]
---     >>= \case
---       Left _ -> error "error while execution of messages.send method"
---       Right _ -> pure ()
-
 initScheduler :: (WithDb, WithScheduler) => IO ()
 initScheduler = do
-  undefined
-
--- rules <- getAllRules
--- exceptions <- getAllExceptionRules
--- V.forM_ rules $ \(rid, rule) -> do
---   withScheduler $ \sch -> addRegularRule sch rid rule
--- V.forM_ exceptions $ \(rid, rule) -> do
---   withScheduler $ \sch -> addExceptionRule sch rid rule
+  rules <- Service.getAllActiveRules
+  V.forM_ rules $ \(rId, rule) -> do
+    addRule rId rule
