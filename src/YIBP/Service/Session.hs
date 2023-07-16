@@ -44,7 +44,7 @@ createRefreshTokenCookie (RefreshToken uuid) expiresAt =
     , setCookieValue = T.encodeUtf8 (UUID.toText uuid)
     , setCookieExpires = Just expiresAt
     , setCookieHttpOnly = True
-    , setCookiePath = Just "/sessions"
+    , setCookiePath = Just "/api/sessions"
     }
 
 generateAccessToken :: JWK -> Id User -> UTCTime -> IO AccessToken
