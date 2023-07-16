@@ -37,9 +37,9 @@ updateRefreshTokenWithValidationCheck refreshTokenDuration refreshToken =
     stmt =
       Statement
         "update \"session\" \
-        \set id = gen_random_uuid(), created_at = now() \
-        \where id = $2 and (now() - created_at < $1) \
-        \returning (id, owner_id, created_at)"
+        \ set id = gen_random_uuid(), created_at = now() \
+        \ where id = $2 and (now() - created_at < $1) \
+        \ returning id, owner_id, created_at"
         ( contrazip2
             (Encoders.param (Encoders.nonNullable Encoders.interval))
             refreshTokenParams
