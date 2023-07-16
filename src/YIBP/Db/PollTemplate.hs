@@ -151,9 +151,9 @@ getPollTemplatesByIds ids =
     stmt =
       Statement
         "select pt.id, pt.is_multiple, pt.is_anonymous, pt.duration, pt.question, \
-        \ array_agg(po.id), array_agg(po.data) \
+        \ array_remove(array_agg(po.id), NULL), array_remove(array_agg(po.data), NULL) \
         \ from \"poll_template\" as pt \
-        \ inner join \"poll_template_option\" po ON po.poll_template_id = pt.id \
+        \ left join \"poll_template_option\" po ON po.poll_template_id = pt.id \
         \ where pt.id = ANY($1) \
         \ group by pt.id"
         (Encoders.param $ Encoders.nonNullable $ Encoders.foldableArray $ Encoders.nonNullable Encoders.idValue)
@@ -163,6 +163,7 @@ getPollTemplatesByIds ids =
 getPollTemplateById :: (WithDb, HasCallStack) => Id Core.PollTemplate -> IO (Maybe Core.PollTemplateFull)
 getPollTemplateById pId = do
   vec <- getPollTemplatesByIds (V.singleton pId)
+  print vec
   pure $ case V.uncons vec of
     Just (t, _) -> Just t
     Nothing -> Nothing
