@@ -11,13 +11,13 @@ senderRow =
     <$> idRow
     <*> column (nonNullable text)
     <*> column (nonNullable bytea)
-    <*> column (nullable (composite botSenderComposite))
+    <*> botSenderRow
   where
-    botSenderComposite :: Composite RawBotSender
-    botSenderComposite =
-      RawBotSender
-        <$> field (nonNullable bytea)
-        <*> fmap fromIntegral (field (nonNullable int4))
+    botSenderRow :: Row (Maybe RawBotSender)
+    botSenderRow = do
+      accessToken <- column (nullable bytea)
+      theId <- fmap fromIntegral <$> column (nullable int4)
+      pure $ RawBotSender <$> accessToken <*> theId
 
 senderTrimmedRow :: Row RawSenderTrimmed
 senderTrimmedRow =
