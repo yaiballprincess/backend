@@ -2,13 +2,8 @@
 
 module YIBP.Scheduler.Scheduler
   ( Scheduler
-  , WithScheduler
-  , withScheduler
   , mkScheduler
   , runScheduler
-  , addRule
-  , editRule
-  , removeRule
   , initScheduler
   ) where
 
@@ -33,8 +28,8 @@ import Control.Concurrent.STM
 import Control.Exception (Exception, throwIO)
 import Control.Monad
 
+import YIBP.Scheduler
 import YIBP.Scheduler.Util
-
 
 import YIBP.Core.Id
 import YIBP.Core.PollTemplate
@@ -51,34 +46,9 @@ import Fmt
 
 import GHC.Float.RealFracMethods
 
-type RuleId = Int
-
-data SchedulerRuleEvent
-  = AddRuleEvent RuleId Rule
-  | EditRuleEvent RuleId Rule
-  | RemoveRuleEvent RuleId
-
-newtype Scheduler = Scheduler (TQueue SchedulerRuleEvent)
-
-type WithScheduler = (?scheduler :: Scheduler)
-
-withScheduler :: (WithScheduler) => (Scheduler -> a) -> a
-withScheduler f = f ?scheduler
-
 mkScheduler :: IO Scheduler
 mkScheduler = Scheduler <$> newTQueueIO
 
-addRule :: (WithScheduler) => Id Rule -> Rule -> IO ()
-addRule (Id rid) rule = withScheduler $ \(Scheduler q) -> atomically $ do
-  writeTQueue q (AddRuleEvent rid rule)
-
-editRule :: (WithScheduler) => Id Rule -> Rule -> IO ()
-editRule (Id rid) rule = withScheduler $ \(Scheduler q) -> atomically $ do
-  writeTQueue q (EditRuleEvent rid rule)
-
-removeRule :: (WithScheduler) => Id Rule -> IO ()
-removeRule (Id rid) = withScheduler $ \(Scheduler q) -> atomically $ do
-  writeTQueue q (RemoveRuleEvent rid)
 
 doSTMWithTimeout :: Int -> STM a -> IO (Maybe a)
 doSTMWithTimeout n action = do
@@ -124,11 +94,11 @@ data CandidateFull = CandidateFull
   , pollTemplate :: !PollTemplate
   }
 
-getFullCandidate :: WithDb => Candidate -> IO (Maybe CandidateFull)
+getFullCandidate :: (WithDb) => Candidate -> IO (Maybe CandidateFull)
 getFullCandidate c = do
   fmap tr <$> Service.getDetailedRegularRule (c.senderId, c.pollTemplateId)
   where
-    tr (s, pt) = CandidateFull { sender = s, peerId = c.peerId, pollTemplate = pt }
+    tr (s, pt) = CandidateFull {sender = s, peerId = c.peerId, pollTemplate = pt}
 
 getExecCandidates :: UTCTime -> SchedulerState -> V.Vector Candidate
 getExecCandidates curTime state =

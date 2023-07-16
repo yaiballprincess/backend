@@ -108,6 +108,7 @@ library
     YIBP.Db.User.Encoders
     YIBP.Db.User.Types
     YIBP.Error
+    YIBP.Scheduler
     YIBP.Scheduler.Scheduler
     YIBP.Scheduler.Util
     YIBP.Server

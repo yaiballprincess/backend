@@ -11,8 +11,13 @@ import YIBP.Db.PollTemplate qualified as Db
 import YIBP.Db.Rule qualified as Db
 import YIBP.Db.Rule.Types
 import YIBP.Service.Sender qualified as Service
+import YIBP.Scheduler
 
 import Data.Vector qualified as V
+import Control.Exception (Exception, throwIO)
+
+data RuleDoesNotExist = RuleDoesNotExist
+  deriving (Show, Eq, Exception)
 
 getDetailedRegularRule :: (WithDb) => (Id SenderTag, Id PollTemplate) -> IO (Maybe (Sender 'Decrypted, PollTemplate))
 getDetailedRegularRule (sId, pId) = runMaybeT $ do
@@ -34,3 +39,26 @@ getAllActiveRules = V.catMaybes . V.map tr <$> Db.getAllRules
     tr r
       | r.isActive && r.canTrigger = Just (r.id, Rule {metadata = r.metadata, isActive = r.isActive})
       | otherwise = Nothing
+
+createRule :: (WithScheduler, WithDb) => Rule -> IO (Id Rule)
+createRule rule = do
+  rId <- Db.insertRule rule
+  addRule rId rule
+  pure rId
+
+updateRule :: (WithDb, WithScheduler) => Id Rule -> Rule -> IO ()
+updateRule rId rule = do
+  Db.updateRule rId rule >>= \case
+    False -> throwIO RuleDoesNotExist
+    True -> updateRule rId rule
+
+deleteRule :: (WithDb, WithScheduler) => Id Rule -> IO ()
+deleteRule rId = do
+  Db.deleteRule rId >>= \case
+    False -> throwIO RuleDoesNotExist
+    True -> deleteRule rId
+
+getAllRules :: WithDb => IO (V.Vector (IdObject Rule))
+getAllRules = V.map tr <$> Db.getAllRulesCanTrigger
+  where
+    tr r = IdObject { id = r.id, value = Rule { metadata = r.metadata, isActive = r.isActive }}

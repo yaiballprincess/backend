@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module YIBP.Server.Rule (RuleAPI, theRuleAPI) where
 
@@ -7,25 +7,17 @@ import Servant.Server.Generic
 
 import Control.Monad.Except
 
-import YIBP.App
-import YIBP.Scheduler.Util
-
-import Data.Aeson
-import Data.Text qualified as T
-import Data.Time
 import Data.Vector qualified as V
 
 import GHC.Generics
 
-import Optics
 import YIBP.Core.Id
-import YIBP.Core.Receiver
 import YIBP.Core.Rule
-import YIBP.Core.Sender
 import YIBP.Db
-import YIBP.Db.Rule
-import YIBP.Scheduler.Scheduler
-import YIBP.Util.WithId
+import YIBP.Service.Rule qualified as Service
+import YIBP.Scheduler
+import Control.Monad.Catch (catch)
+import YIBP.Error
 
 data RuleAPI route = RuleAPI
   { _add
@@ -42,7 +34,7 @@ data RuleAPI route = RuleAPI
         :- Capture "id" (Id Rule)
         :> Delete '[JSON] NoContent
   , _get
-      :: route :- Get '[JSON] (V.Vector Rule)
+      :: route :- Get '[JSON] (V.Vector (IdObject Rule))
   }
   deriving (Generic)
 
@@ -56,13 +48,19 @@ theRuleAPI =
     }
 
 addHandler :: (WithDb, WithScheduler) => Rule -> Handler (Id Rule)
-addHandler = undefined
+addHandler r = liftIO $ Service.createRule r
 
 updateHandler :: (WithDb, WithScheduler) => Id Rule -> Rule -> Handler NoContent
-updateHandler = undefined
+updateHandler rId rule = do
+  liftIO (Service.updateRule rId rule)
+    `catch` (\Service.RuleDoesNotExist -> raiseServantError (HttpError @Service.RuleDoesNotExist "rule does not exist") err404)
+  pure NoContent
 
 removeHandler :: (WithDb, WithScheduler) => Id Rule -> Handler NoContent
-removeHandler = undefined
+removeHandler rId = do
+  liftIO (Service.deleteRule rId)
+    `catch` (\Service.RuleDoesNotExist -> raiseServantError (HttpError @Service.RuleDoesNotExist "rule does not exist") err404)
+  pure NoContent
 
-getHandler :: (WithDb) => Handler (V.Vector Rule)
-getHandler = undefined
+getHandler :: (WithDb) => Handler (V.Vector (IdObject Rule))
+getHandler = liftIO Service.getAllRules
