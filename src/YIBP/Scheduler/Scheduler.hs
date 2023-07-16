@@ -14,6 +14,7 @@ import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IntSet
+import Data.List (find)
 import Data.Maybe (catMaybes, isNothing)
 import Data.Set qualified as Set
 import Data.Text qualified as T
@@ -21,6 +22,7 @@ import Data.Text.Encoding qualified as T
 import Data.Time
 import Data.Vector qualified as V
 
+import System.IO.Unsafe
 import System.Random
 
 import Control.Applicative
@@ -130,22 +132,30 @@ getExecCandidates curTime state =
     pureRules = state.regularRules `IntMap.restrictKeys` pureRuleIds
 
     processRule :: (Int, RegularRule) -> Candidate
-    processRule (rId, r) = case IntMap.lookup rId state.replaceRules of
-      Just replaceRule
-        | replaceRule.sendAt == (state.nextTime IntMap.! rId) ->
-            Candidate
-              { ruleId = rId
-              , senderId = r.senderId
-              , peerId = r.peerId
-              , pollTemplateId = replaceRule.newPollTemplateId
-              }
-      _ ->
-        Candidate
-          { ruleId = rId
-          , senderId = r.senderId
-          , peerId = r.peerId
-          , pollTemplateId = r.pollTemplateId
-          }
+    processRule (rId, r) =
+      case findReplaceRule rId of
+        Just replaceRule ->
+          Candidate
+            { ruleId = rId
+            , senderId = r.senderId
+            , peerId = r.peerId
+            , pollTemplateId = replaceRule.newPollTemplateId
+            }
+        _ ->
+          Candidate
+            { ruleId = rId
+            , senderId = r.senderId
+            , peerId = r.peerId
+            , pollTemplateId = r.pollTemplateId
+            }
+    findReplaceRule :: Int -> Maybe ReplaceRule
+    findReplaceRule rId =
+      snd
+        <$> find
+          ( \(_, rule) ->
+              (idToInt rule.regularRuleId == rId) && (rule.sendAt == (state.nextTime IntMap.! rId))
+          )
+          (IntMap.assocs state.replaceRules)
 
 newtype SendMessageError = SendMessageError T.Text
   deriving (Show, Eq)
