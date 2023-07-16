@@ -87,7 +87,7 @@ createSender csp = do
       VK.sendMethod @(VK.WithResponse (V.Vector VKGroupFull)) botClient "groups.getById" [] >>= \case
         Left err -> throwIO $ VKGroupError err.errorCode
         Right (VK.WithResponse groups) -> do
-          unless (V.length groups /= 1) $ do
+          unless (V.length groups == 1) $ do
             throwIO $ VKGroupError 0
           let group = V.head groups
           encryptedBotAccessToken <- encryptCryptoTextRandom botAccessToken
