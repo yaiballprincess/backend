@@ -122,3 +122,13 @@ getSendersTrimmed =
           }
     )
     <$> Db.getSendersTrimmed
+
+getSenderById :: (WithDb) => Id SenderTag -> IO (Maybe (Sender 'Encrypted))
+getSenderById sId = fmap tr <$> Db.getSenderById sId
+  where
+    tr r =
+      Sender
+        { name = r.name
+        , accessToken = r.accessToken
+        , bot = BotSender <$> ((.accessToken) <$> r.bot) <*> ((.id) <$> r.bot)
+        }
