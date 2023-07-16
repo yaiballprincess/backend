@@ -79,7 +79,12 @@ runScheduler' = loop
       let delay = getDelayToNearestEvent curTime state
       putStrLn $ "Sleeping for " <> show delay <> " us [current time = " <> show curTime <> "]"
       doSTMWithTimeout delay (readTQueue queue) >>= \case
-        Nothing -> onExecRule state >>= loop
+        Nothing -> do
+          state' <- onExecRule state
+          curTime' <- getCurrentTime
+          tz <- getCurrentTimeZone
+          let (_, state'') = updateNextExecTime curTime' tz (IntMap.keysSet state'.nextTime) state'
+          loop state''
         Just ev -> do
           putStrLn $ "Got new event: " <> show ev
           onRuleEvent ev state >>= loop
