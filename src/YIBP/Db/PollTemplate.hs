@@ -31,10 +31,10 @@ getAllPollTemplates = withConn $ Session.run (Session.statement () stmt)
     stmt =
       Statement
         "select pt.id, pt.is_multiple, pt.is_anonymous, pt.duration, pt.question, \
-        \array_agg(po.id), array_agg(po.data) \
-        \from \"poll_template\" as pt \
-        \inner join \"poll_template_option\" po ON po.poll_template_id = pt.id \
-        \group by pt.id"
+        \ array_agg(po.id), array_agg(po.data) \
+        \ from \"poll_template\" as pt \
+        \ inner join \"poll_template_option\" po ON po.poll_template_id = pt.id \
+        \ group by pt.id"
         Encoders.noParams
         (Decoders.rowVector pollTemplateFullRow)
         True
@@ -48,9 +48,9 @@ insertPollTemplate params = withConn $ Session.run (Session.statement params stm
     stmt =
       Statement
         "insert into \"poll_template\" \
-        \(is_multiple, is_anonymous, duration, question) values \
-        \values ($1, $2, $3, $4) \
-        \returning id"
+        \ (is_multiple, is_anonymous, duration, question) values \
+        \ values ($1, $2, $3, $4) \
+        \ returning id"
         insertPollTemplateParams
         (Decoders.singleRow idRow)
         True
@@ -66,7 +66,7 @@ insertPollTemplateOption ptId (Core.PollTemplateOption po) =
     stmt =
       Statement
         "insert into \"poll_template_option\" \
-        \(poll_template_id, data) values ($1, $2) \
+        \ (poll_template_id, data) values ($1, $2) \
         \ returning id"
         ( contrazip2
             idParams
@@ -85,9 +85,9 @@ updatePollTemplate params =
     stmt =
       Statement
         "update \"poll_template\" set \
-        \is_multiple = $2, is_anonymous = $3, \
-        \duration = $4, question = $5 \
-        \where id = $1"
+        \ is_multiple = $2, is_anonymous = $3, \
+        \ duration = $4, question = $5 \
+        \ where id = $1"
         updatePollTemplateParams
         Decoders.rowsAffected
         True
@@ -104,8 +104,8 @@ updatePollTemplateOption ptId ptoId (Core.PollTemplateOption text) =
     stmt =
       Statement
         "update \"poll_template_option\" set \
-        \data = $3 \
-        \where poll_template_id = $1 AND id = $2"
+        \ data = $3 \
+        \ where poll_template_id = $1 AND id = $2"
         ( contrazip3
             idParams
             idParams
@@ -136,7 +136,7 @@ deletePollTemplateOption ptId ptoId =
     stmt =
       Statement
         "delete from \"poll_template_option\" \
-        \where poll_template_id = $1 AND id = $2"
+        \ where poll_template_id = $1 AND id = $2"
         (contrazip2 idParams idParams)
         Decoders.rowsAffected
         True
@@ -151,11 +151,18 @@ getPollTemplatesByIds ids =
     stmt =
       Statement
         "select pt.id, pt.is_multiple, pt.is_anonymous, pt.duration, pt.question, \
-        \array_agg(po.id), array_agg(po.data) \
-        \from \"poll_template\" as pt \
-        \inner join \"poll_template_option\" po ON po.poll_template_id = pt.id \
-        \where pt.id = ANY($1) \
-        \group by pt.id"
+        \ array_agg(po.id), array_agg(po.data) \
+        \ from \"poll_template\" as pt \
+        \ inner join \"poll_template_option\" po ON po.poll_template_id = pt.id \
+        \ where pt.id = ANY($1) \
+        \ group by pt.id"
         (Encoders.param $ Encoders.nonNullable $ Encoders.foldableArray $ Encoders.nonNullable Encoders.idValue)
         (Decoders.rowVector pollTemplateFullRow)
         True
+
+getPollTemplateById :: (WithDb, HasCallStack) => Id Core.PollTemplate -> IO (Maybe Core.PollTemplateFull)
+getPollTemplateById pId = do
+  vec <- getPollTemplatesByIds (V.singleton pId)
+  pure $ case V.uncons vec of
+    Just (t, _) -> Just t
+    Nothing -> Nothing
