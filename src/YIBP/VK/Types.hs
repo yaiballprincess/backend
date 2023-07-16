@@ -23,6 +23,7 @@ import Deriving.Aeson
   , FieldLabelModifier
   , Generic
   , OmitNothingFields
+  , StripPrefix
   )
 
 data VKUserFull = VKUserFull
@@ -74,7 +75,7 @@ data VKConversationPeer = VKConversationPeer
   deriving (Eq, Show, Generic)
   deriving
     (FromJSON, ToJSON)
-    via CustomJSON '[OmitNothingFields, FieldLabelModifier '[CamelToSnake]] VKConversationPeer
+    via CustomJSON '[OmitNothingFields, FieldLabelModifier '[StripPrefix "_", CamelToSnake]] VKConversationPeer
 
 data VKChatSettings = VKChatSettings
   { ownerId :: !Int
