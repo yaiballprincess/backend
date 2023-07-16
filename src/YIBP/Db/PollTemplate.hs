@@ -163,7 +163,6 @@ getPollTemplatesByIds ids =
 getPollTemplateById :: (WithDb, HasCallStack) => Id Core.PollTemplate -> IO (Maybe Core.PollTemplateFull)
 getPollTemplateById pId = do
   vec <- getPollTemplatesByIds (V.singleton pId)
-  print vec
   pure $ case V.uncons vec of
     Just (t, _) -> Just t
     Nothing -> Nothing
