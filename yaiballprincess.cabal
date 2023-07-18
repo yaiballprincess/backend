@@ -176,6 +176,7 @@ library
     , optics-core
     , optics-th
     , password
+    , pew
     , random
     , servant               <0.21
     , servant-auth

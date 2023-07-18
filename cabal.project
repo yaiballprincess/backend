@@ -1,0 +1,6 @@
+packages: .
+
+source-repository-package
+  type: git
+  location: https://github.com/ablearthy/Pew.git
+  tag: eaa3196d51e259775e55b91eb7e17a23e8569a75
