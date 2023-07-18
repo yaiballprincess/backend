@@ -153,7 +153,7 @@ library
 
   -- Other library packages from which modules are imported.
   build-depends:
-    , aeson
+    , aeson                 ==2.1.2.1
     , aeson-optics
     , async
     , base                  ^>=4.17.1.0
