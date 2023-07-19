@@ -90,7 +90,11 @@ data SchedulerState = SchedulerState
 addRuleS :: UTCTime -> SchedulerState -> Int -> Rule -> SchedulerState
 addRuleS curTime state rId (Rule (RMRegular rule) _) =
   case calculateNextExecTime rule.schedule curTime state.tz of
-    Just t -> state {regularRules = IntMap.insert rId (emptyRegularRuleContext t rule) state.regularRules}
+    Just t ->
+      let ignoreRuleIds = IntMap.keysSet $ IntMap.filter (\r -> idToInt r.regularRuleId == rId) state.ignoreRules
+          replaceRuleIds = IntMap.keysSet $ IntMap.filter (\r -> idToInt r.regularRuleId == rId) state.replaceRules
+          ctx = RegularRuleContext {nextTime = t, rule = rule, ignoreRuleIds, replaceRuleIds}
+      in  state {regularRules = IntMap.insert rId ctx state.regularRules}
     Nothing -> state
 addRuleS _ state rId (Rule (RMIgnore rule) _) =
   case IntMap.lookup regularRuleId state.regularRules of
