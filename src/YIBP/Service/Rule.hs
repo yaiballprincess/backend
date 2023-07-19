@@ -64,3 +64,6 @@ getAllRules :: WithDb => IO (V.Vector (IdObject Rule))
 getAllRules = V.map tr <$> Db.getAllRulesCanTrigger
   where
     tr r = IdObject { id = r.id, value = Rule { metadata = r.metadata, isActive = r.isActive }}
+
+markRulesObsolete :: WithDb => V.Vector (Id Rule) -> IO ()
+markRulesObsolete = Db.setCanTriggerFalseBatch

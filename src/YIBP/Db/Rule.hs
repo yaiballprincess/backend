@@ -18,6 +18,7 @@ import YIBP.Core.Rule
 import YIBP.Db
 import YIBP.Db.Id.Decoders
 import YIBP.Db.Id.Encoders
+import YIBP.Db.Id.Encoders qualified as E
 import YIBP.Db.Rule.Decoders
 import YIBP.Db.Rule.Encoders
 import YIBP.Db.Rule.Types
@@ -75,4 +76,14 @@ deleteRule rId = withConn $ Session.run ((==1) <$> Session.statement rId stmt)
         "delete from \"rule\" where id = $1"
         idParams
         D.rowsAffected
+        True
+
+setCanTriggerFalseBatch :: WithDb => V.Vector (Id Rule) -> IO ()
+setCanTriggerFalseBatch vec = withConn $ Session.run (Session.statement vec stmt)
+  where
+    stmt =
+      Statement
+        "update \"rule\" set can_trigger = false where id = ANY($1)"
+        (E.param (E.nonNullable (E.foldableArray (E.nonNullable E.idValue))))
+        D.noResult
         True
