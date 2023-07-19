@@ -4,7 +4,6 @@ module YIBP.Server.Session (SessionAPI, theSessionAPI) where
 
 import Control.Monad.Catch (catch)
 import Control.Monad.Except
-import Data.Text qualified as T
 import Servant
 import Servant.API.Generic
 import Servant.Server.Generic

@@ -1,8 +1,6 @@
 module YIBP.Scheduler.Util where
 
 import System.Cron qualified as Cron
-import System.Cron.Parser qualified as Cron
-import System.Cron.Types qualified as Cron
 
 import Data.Aeson
 import Data.Text qualified as T

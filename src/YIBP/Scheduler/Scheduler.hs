@@ -14,9 +14,6 @@ import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
 import Data.IntSet (IntSet)
 import Data.IntSet qualified as IntSet
-import Data.List (find)
-import Data.Maybe (catMaybes, isNothing)
-import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
 import Data.Time

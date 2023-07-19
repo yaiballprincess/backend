@@ -3,8 +3,6 @@
 module YIBP.Util.WithId (WithId (..)) where
 
 import Data.Aeson
-import Data.Aeson.Key
-import Data.Aeson.KeyMap
 import Data.Vector qualified as V
 
 data WithId a = WithId !Int !a

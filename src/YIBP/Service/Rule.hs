@@ -15,7 +15,6 @@ import YIBP.Scheduler qualified as S
 import YIBP.Service.Sender qualified as Service
 
 import Control.Exception (Exception, throwIO)
-import Control.Monad.IO.Class
 import Data.Vector qualified as V
 
 data RuleDoesNotExist = RuleDoesNotExist
