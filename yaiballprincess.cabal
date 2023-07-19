@@ -68,7 +68,6 @@ library
   -- Modules included in this library but not exported.
   -- cabal-fmt: expand src/ -MyLib
   other-modules:
-    YIBP.App
     YIBP.Config
     YIBP.Core.Auth
     YIBP.Core.Id
