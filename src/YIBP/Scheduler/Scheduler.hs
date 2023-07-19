@@ -22,10 +22,10 @@ import Data.Text.Encoding qualified as T
 import Data.Time
 import Data.Vector qualified as V
 
-import System.IO.Unsafe
 import System.Random
 
 import Control.Applicative
+import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Exception (Exception, SomeException, catch, throwIO)
 import Control.Monad
@@ -46,6 +46,7 @@ import YIBP.VK.Types
 
 import Fmt
 
+import Data.Maybe
 import GHC.Float.RealFracMethods
 
 mkScheduler :: IO Scheduler
@@ -58,15 +59,98 @@ doSTMWithTimeout n action = do
     Just <$> action
       <|> Nothing <$ (readTVar delay >>= check)
 
+data RegularRuleContext = RegularRuleContext
+  { nextTime :: !UTCTime
+  , rule :: !RegularRule
+  , ignoreRuleIds :: !IntSet
+  , replaceRuleIds :: !IntSet
+  }
+  deriving (Show)
+
+emptyRegularRuleContext :: UTCTime -> RegularRule -> RegularRuleContext
+emptyRegularRuleContext t r = RegularRuleContext t r IntSet.empty IntSet.empty
+
+data RuleTag = ReplaceRuleTag | IgnoreRuleTag
+
+modifyRegularRuleContext :: RuleTag -> (IntSet -> IntSet) -> RegularRuleContext -> RegularRuleContext
+modifyRegularRuleContext ReplaceRuleTag f ctx = ctx {replaceRuleIds = f ctx.replaceRuleIds}
+modifyRegularRuleContext IgnoreRuleTag f ctx = ctx {ignoreRuleIds = f ctx.ignoreRuleIds}
+
+regularRuleShouldBeIgnored :: SchedulerState -> RegularRuleContext -> Bool
+regularRuleShouldBeIgnored state ctx =
+  any (\r -> r.sendAt == ctx.nextTime) $
+    ctx.ignoreRuleIds
+      & IntSet.toList
+      & mapMaybe (`IntMap.lookup` state.ignoreRules)
+
 data SchedulerState = SchedulerState
-  { nextTime :: !(IntMap UTCTime)
-  , regularRules :: !(IntMap RegularRule)
+  { regularRules :: !(IntMap RegularRuleContext)
   , ignoreRules :: !(IntMap IgnoreRule)
   , replaceRules :: !(IntMap ReplaceRule)
+  , tz :: !TimeZone
   }
 
+addRuleS :: UTCTime -> SchedulerState -> Int -> Rule -> SchedulerState
+addRuleS curTime state rId (Rule (RMRegular rule) _) =
+  case calculateNextExecTime rule.schedule curTime state.tz of
+    Just t -> state {regularRules = IntMap.insert rId (emptyRegularRuleContext t rule) state.regularRules}
+    Nothing -> state
+addRuleS _ state rId (Rule (RMIgnore rule) _) =
+  case IntMap.lookup regularRuleId state.regularRules of
+    Nothing -> state
+    Just _ ->
+      state
+        { regularRules = IntMap.adjust (modifyRegularRuleContext IgnoreRuleTag (IntSet.insert rId)) regularRuleId state.regularRules
+        , ignoreRules = IntMap.insert rId rule state.ignoreRules
+        }
+  where
+    regularRuleId = idToInt rule.regularRuleId
+addRuleS _ state rId (Rule (RMReplace rule) _) =
+  case IntMap.lookup regularRuleId state.regularRules of
+    Nothing -> state
+    Just _ ->
+      state
+        { regularRules = IntMap.adjust (modifyRegularRuleContext ReplaceRuleTag (IntSet.insert rId)) regularRuleId state.regularRules
+        , replaceRules = IntMap.insert rId rule state.replaceRules
+        }
+  where
+    regularRuleId = idToInt rule.regularRuleId
+
+deleteRuleS :: SchedulerState -> Int -> SchedulerState
+deleteRuleS state rId
+  | IntMap.member rId state.regularRules =
+      case IntMap.lookup rId state.regularRules of
+        Nothing -> state
+        Just ctx ->
+          state
+            { regularRules = IntMap.delete rId state.regularRules
+            , ignoreRules = IntMap.withoutKeys state.ignoreRules ctx.ignoreRuleIds
+            , replaceRules = IntMap.withoutKeys state.replaceRules ctx.replaceRuleIds
+            }
+  | IntMap.member rId state.ignoreRules =
+      case IntMap.lookup rId state.ignoreRules of
+        Nothing -> state
+        Just ir ->
+          let regularRuleId = idToInt ir.regularRuleId
+          in  state
+                { regularRules = IntMap.adjust (modifyRegularRuleContext IgnoreRuleTag (IntSet.delete rId)) regularRuleId state.regularRules
+                , ignoreRules = IntMap.delete rId state.ignoreRules
+                }
+  | IntMap.member rId state.replaceRules =
+      case IntMap.lookup rId state.replaceRules of
+        Nothing -> state
+        Just rr ->
+          let regularRuleId = idToInt rr.regularRuleId
+          in  state
+                { regularRules = IntMap.adjust (modifyRegularRuleContext ReplaceRuleTag (IntSet.delete rId)) regularRuleId state.regularRules
+                , replaceRules = IntMap.delete rId state.replaceRules
+                }
+  | otherwise = state
+
 runScheduler :: (WithDb, WithScheduler) => IO ()
-runScheduler = runScheduler' (SchedulerState IntMap.empty IntMap.empty IntMap.empty IntMap.empty)
+runScheduler = do
+  tz <- getCurrentTimeZone
+  runScheduler' (SchedulerState IntMap.empty IntMap.empty IntMap.empty tz)
 
 runScheduler'
   :: (WithDb, WithScheduler)
@@ -74,21 +158,59 @@ runScheduler'
   -> IO ()
 runScheduler' = loop
   where
+    getDelay state = do
+      curTime <- getCurrentTime
+      let delta = diffUTCTime curTime <$> getNearestEventTime state
+      let delay = floorDoubleInt . (* 1_000_000) . realToFrac <$> delta
+      pure $ max 0 (fromMaybe maxBound delay)
     Scheduler queue = withScheduler id
     loop state = do
-      curTime <- getCurrentTime
-      let delay = getDelayToNearestEvent curTime state
-      putStrLn $ "Sleeping for " <> show delay <> " us [current time = " <> show curTime <> "]"
-      doSTMWithTimeout delay (readTQueue queue) >>= \case
-        Nothing -> do
-          state' <- onExecRule state
-          curTime' <- getCurrentTime
-          tz <- getCurrentTimeZone
-          let (_, state'') = updateNextExecTime curTime' tz (IntMap.keysSet state'.nextTime) state'
-          loop state''
-        Just ev -> do
-          putStrLn $ "Got new event: " <> show ev
-          onRuleEvent ev state >>= loop
+      delay <- getDelay state
+      putStrLn $ "Sleeping for " <> show delay <> " us"
+      s' <-
+        doSTMWithTimeout delay (readTQueue queue) >>= \case
+          Nothing -> do
+            curTime <- getCurrentTime
+            let rulesToBeUpdated = IntMap.filter (\r -> r.nextTime <= curTime) state.regularRules
+            let rulesToBeExecuted = [(i, r) | (i, r) <- IntMap.assocs rulesToBeUpdated, not (regularRuleShouldBeIgnored state r)]
+            _ <- forkIO $ forM_ rulesToBeExecuted $ \(i, r) -> do
+              execRule state i r
+                `catch` (\(e :: SomeException) -> putStrLn $ "Failed to send message according to rule" <> show r <> " with error: " <> show e)
+            let rulesToDelete = getRuleIdsToDelete curTime state
+            Service.markRulesObsolete (IntSet.toList rulesToDelete & map Id & V.fromList)
+            let state' = IntSet.foldl' deleteRuleS state rulesToDelete
+            pure $ updateNextTimes curTime state' rulesToBeUpdated
+          Just ev -> do
+            putStrLn $ "Got new event: " <> show ev
+            onRuleEvent ev state
+      loop s'
+
+getRuleIdsToDelete :: UTCTime -> SchedulerState -> IntSet
+getRuleIdsToDelete curTime state =
+  regularRuleIdsToDelete
+    <> IntMap.keysSet (IntMap.filter (\x -> x.sendAt < curTime) state.ignoreRules)
+    <> IntMap.keysSet (IntMap.filter (\x -> x.sendAt < curTime) state.replaceRules)
+  where
+    regularRuleIdsToDelete = IntMap.foldlWithKey' go IntSet.empty state.regularRules
+      where
+        go acc rId ctx = case calculateNextExecTime ctx.rule.schedule curTime state.tz of
+          Nothing -> acc <> IntSet.singleton rId <> ctx.ignoreRuleIds <> ctx.replaceRuleIds
+          Just _ -> acc
+
+updateNextTimes :: UTCTime -> SchedulerState -> IntMap RegularRuleContext -> SchedulerState
+updateNextTimes curTime = IntMap.foldlWithKey' go
+  where
+    go state regularRuleId ctx = case calculateNextExecTime ctx.rule.schedule curTime state.tz of
+      Nothing -> state
+      Just t -> state {regularRules = IntMap.adjust (\x -> x {nextTime = t}) regularRuleId state.regularRules}
+
+getNearestEventTime :: SchedulerState -> Maybe UTCTime
+getNearestEventTime state = IntMap.foldl' go Nothing state.regularRules
+  where
+    go :: Maybe UTCTime -> RegularRuleContext -> Maybe UTCTime
+    go acc ctx
+      | regularRuleShouldBeIgnored state ctx = acc
+      | otherwise = Just $ min (fromMaybe ctx.nextTime acc) ctx.nextTime
 
 data Candidate = Candidate
   { ruleId :: !Int
@@ -111,51 +233,34 @@ getFullCandidate c = do
   where
     tr (s, pt) = CandidateFull {sender = s, peerId = c.peerId, pollTemplate = pt}
 
-getExecCandidates :: UTCTime -> SchedulerState -> V.Vector Candidate
-getExecCandidates curTime state =
-  IntMap.assocs pureRules
-    & map processRule
-    & V.fromList
+execRule :: (WithDb) => SchedulerState -> Int -> RegularRuleContext -> IO ()
+execRule state rId ctx = do
+  fullCandidate <-
+    getFullCandidate candidate >>= \case
+      Just t -> pure t
+      Nothing -> throwIO $ SendMessageError "unable to fetch full candidate"
+  sendMessage fullCandidate
   where
-    satisfyingRules = IntMap.keysSet $ IntMap.filterWithKey (\_ t -> t <= curTime) state.nextTime
-    ignoreRules =
-      IntMap.filterWithKey
-        ( \_ k -> case IntMap.lookup (idToInt k.regularRuleId) state.nextTime of
-            Just t -> k.sendAt == t
-            Nothing -> False
-        )
-        state.ignoreRules
-        & IntMap.elems
-        & map (\r -> idToInt r.regularRuleId)
-        & IntSet.fromList
-    pureRuleIds = satisfyingRules `IntSet.difference` ignoreRules
-    pureRules = state.regularRules `IntMap.restrictKeys` pureRuleIds
-
-    processRule :: (Int, RegularRule) -> Candidate
-    processRule (rId, r) =
-      case findReplaceRule rId of
+    defaultCandidate :: Candidate
+    defaultCandidate =
+      Candidate
+        { ruleId = rId
+        , senderId = ctx.rule.senderId
+        , peerId = ctx.rule.peerId
+        , pollTemplateId = ctx.rule.pollTemplateId
+        }
+    candidate :: Candidate
+    candidate = case IntSet.maxView ctx.replaceRuleIds of
+      Nothing -> defaultCandidate
+      Just (replaceRuleId, _) -> case IntMap.lookup replaceRuleId state.replaceRules of
+        Nothing -> defaultCandidate
         Just replaceRule ->
           Candidate
             { ruleId = rId
-            , senderId = r.senderId
-            , peerId = r.peerId
+            , senderId = ctx.rule.senderId
+            , peerId = ctx.rule.peerId
             , pollTemplateId = replaceRule.newPollTemplateId
             }
-        _ ->
-          Candidate
-            { ruleId = rId
-            , senderId = r.senderId
-            , peerId = r.peerId
-            , pollTemplateId = r.pollTemplateId
-            }
-    findReplaceRule :: Int -> Maybe ReplaceRule
-    findReplaceRule rId =
-      snd
-        <$> find
-          ( \(_, rule) ->
-              (idToInt rule.regularRuleId == rId) && (rule.sendAt == (state.nextTime IntMap.! rId))
-          )
-          (IntMap.assocs state.replaceRules)
 
 newtype SendMessageError = SendMessageError T.Text
   deriving (Show, Eq)
@@ -198,92 +303,13 @@ sendMessage c = do
       Left _ -> throwIO $ SendMessageError "unable to send message"
       Right _ -> pure ()
 
-getObsoleteRules :: UTCTime -> TimeZone -> SchedulerState -> IntSet
-getObsoleteRules curTime tz state =
-  obsoleteRegularRules `IntSet.union` obsoleteIgnoreRules `IntSet.union` obsoleteReplaceRules
-  where
-    obsoleteRegularRules =
-      IntMap.keysSet $
-        IntMap.filterWithKey (\_ v -> isNothing (calculateNextExecTime v.schedule curTime tz)) state.regularRules
-    obsoleteIgnoreRules =
-      IntMap.keysSet $
-        IntMap.filterWithKey (\_ v -> v.sendAt <= curTime) state.ignoreRules
-    obsoleteReplaceRules =
-      IntMap.keysSet $
-        IntMap.filterWithKey (\_ v -> v.sendAt <= curTime) state.replaceRules
-
-updateNextExecTime :: UTCTime -> TimeZone -> IntSet -> SchedulerState -> (IntSet, SchedulerState)
-updateNextExecTime curTime tz idsToUpdate state = IntMap.foldlWithKey' go (IntSet.empty, state) state.nextTime
-  where
-    sc i = (state.regularRules IntMap.! i).schedule
-    go (obsolete, s) i _
-      | i `IntSet.member` idsToUpdate = case calculateNextExecTime (sc i) curTime tz of
-          Just t -> (obsolete, s {nextTime = IntMap.insert i t s.nextTime})
-          Nothing -> (IntSet.insert i obsolete, s {nextTime = IntMap.delete i s.nextTime, regularRules = IntMap.delete i s.regularRules})
-      | otherwise = (obsolete, s)
-
-onExecRule :: (WithDb, WithScheduler) => SchedulerState -> IO SchedulerState
-onExecRule state = do
-  curTime <- getCurrentTime
-  tz <- getCurrentTimeZone
-  let candidates = getExecCandidates curTime state
-  putStrLn $ "Candidates: " <> show candidates
-  fullCandidates <- V.forM candidates getFullCandidate
-
-  V.forM_ (V.catMaybes fullCandidates) $ \c -> do
-    putStrLn $ "Sending message: " <> show c
-    sendMessage c
-      `catch` (\(e :: SomeException) -> putStrLn $ "Failed to send message of candidate " <> show c <> " with error: " <> show e)
-
-  let idsToUpdate = IntSet.fromList $ V.toList $ V.map (.ruleId) candidates
-  let obsoleteRules = getObsoleteRules curTime tz state
-  let (obsoleteRegularRules, state') = updateNextExecTime curTime tz idsToUpdate state
-  forM_ (map Id (IntSet.toList (obsoleteRules `IntSet.union` obsoleteRegularRules))) removeRule
-  -- set can_trigger = false
-  pure state'
-
 onRuleEvent :: SchedulerRuleEvent -> SchedulerState -> IO SchedulerState
-onRuleEvent (AddRuleEvent rid (Rule (RMRegular rule) _)) state = do
+onRuleEvent (AddRuleEvent rid rule) state = do
   curTime <- getCurrentTime
-  tz <- getCurrentTimeZone
-  case calculateNextExecTime rule.schedule curTime tz of
-    Just t ->
-      pure $
-        state
-          { nextTime = IntMap.insert rid t state.nextTime
-          , regularRules = IntMap.insert rid rule state.regularRules
-          }
-    Nothing -> pure state -- TODO: mark event: `can_trigger` = false
-onRuleEvent (AddRuleEvent rid (Rule (RMIgnore rule) _)) state = do
-  pure $
-    state
-      { ignoreRules = IntMap.insert rid rule state.ignoreRules
-      }
-onRuleEvent (AddRuleEvent rid (Rule (RMReplace rule) _)) state = do
-  pure $
-    state
-      { replaceRules = IntMap.insert rid rule state.replaceRules
-      }
+  pure $ addRuleS curTime state rid rule
 onRuleEvent (EditRuleEvent rid rule) state =
   onRuleEvent (RemoveRuleEvent rid) state >>= onRuleEvent (AddRuleEvent rid rule)
-onRuleEvent (RemoveRuleEvent rid) state
-  | IntMap.member rid state.regularRules =
-      pure $
-        state
-          { nextTime = IntMap.delete rid state.nextTime
-          , regularRules = IntMap.delete rid state.regularRules
-          }
-  | IntMap.member rid state.ignoreRules =
-      pure $
-        state
-          { ignoreRules = IntMap.delete rid state.ignoreRules
-          }
-  | IntMap.member rid state.replaceRules =
-      pure $
-        state
-          { replaceRules = IntMap.delete rid state.replaceRules
-          }
-  | otherwise = pure state
+onRuleEvent (RemoveRuleEvent rid) state = pure $ deleteRuleS state rid
 
 calculateNextExecTime :: MyCronSchedule -> UTCTime -> TimeZone -> Maybe UTCTime
 calculateNextExecTime cron t tz = do
@@ -306,15 +332,6 @@ calculateNextExecTime cron t tz = do
   --  Or cron rules should be specified in UTC. TODO, anyway.
   time <- nextMatch cron (localTimeToUTC utc (utcToLocalTime tz t))
   pure $ localTimeToUTC tz (utcToLocalTime utc time)
-
-getDelayToNearestEvent :: UTCTime -> SchedulerState -> Int
-getDelayToNearestEvent curTime m = case Set.lookupMin (Set.fromList (IntMap.elems m.nextTime)) of
-  Just t ->
-    let diffTime = diffUTCTime t curTime
-    in  if diffTime < 0
-          then 0
-          else floorDoubleInt $ realToFrac diffTime * 1000000
-  Nothing -> maxBound
 
 initScheduler :: (WithDb, WithScheduler) => IO ()
 initScheduler = do
