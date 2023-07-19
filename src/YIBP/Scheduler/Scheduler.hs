@@ -205,9 +205,7 @@ getNearestEventTime :: SchedulerState -> Maybe UTCTime
 getNearestEventTime state = IntMap.foldl' go Nothing state.regularRules
   where
     go :: Maybe UTCTime -> RegularRuleContext -> Maybe UTCTime
-    go acc ctx
-      | regularRuleShouldBeIgnored state ctx = acc
-      | otherwise = Just $ min (fromMaybe ctx.nextTime acc) ctx.nextTime
+    go acc ctx = Just $ min (fromMaybe ctx.nextTime acc) ctx.nextTime
 
 data Candidate = Candidate
   { ruleId :: !Int
