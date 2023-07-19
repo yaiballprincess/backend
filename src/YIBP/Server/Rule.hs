@@ -11,28 +11,28 @@ import Data.Vector qualified as V
 
 import GHC.Generics
 
+import Control.Monad.Catch (catch)
 import YIBP.Core.Id
 import YIBP.Core.Rule
 import YIBP.Db
-import YIBP.Service.Rule qualified as Service
-import YIBP.Scheduler
-import Control.Monad.Catch (catch)
 import YIBP.Error
+import YIBP.Scheduler
+import YIBP.Service.Rule qualified as Service
 
 data RuleAPI route = RuleAPI
   { _add
       :: route
         :- ReqBody '[JSON] Rule
-        :> Post '[JSON] (Id Rule)
+          :> Post '[JSON] (Id Rule)
   , _update
       :: route
         :- Capture "id" (Id Rule)
-        :> ReqBody '[JSON] Rule
-        :> Put '[JSON] NoContent
+          :> ReqBody '[JSON] Rule
+          :> Put '[JSON] NoContent
   , _remove
       :: route
         :- Capture "id" (Id Rule)
-        :> Delete '[JSON] NoContent
+          :> Delete '[JSON] NoContent
   , _get
       :: route :- Get '[JSON] (V.Vector (IdObject Rule))
   }

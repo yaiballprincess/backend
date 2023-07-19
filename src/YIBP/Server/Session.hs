@@ -21,11 +21,11 @@ data SessionAPI route = SessionAPI
   { _login
       :: route
         :- ReqBody '[JSON] LoginUserParam
-        :> Post '[JSON] (Headers '[Header "Set-Cookie" SetCookie] AccessToken)
+          :> Post '[JSON] (Headers '[Header "Set-Cookie" SetCookie] AccessToken)
   , _refresh
       :: route
         :- Header "Cookie" RefreshToken
-        :> Put '[JSON] (Headers '[Header "Set-Cookie" SetCookie] AccessToken)
+          :> Put '[JSON] (Headers '[Header "Set-Cookie" SetCookie] AccessToken)
   }
   deriving (Generic)
 

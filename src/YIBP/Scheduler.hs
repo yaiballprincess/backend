@@ -10,8 +10,8 @@ module YIBP.Scheduler
   ) where
 
 import Control.Concurrent.STM
-import YIBP.Core.Rule
 import YIBP.Core.Id
+import YIBP.Core.Rule
 
 type RuleId = Int
 
@@ -19,7 +19,7 @@ data SchedulerRuleEvent
   = AddRuleEvent RuleId Rule
   | EditRuleEvent RuleId Rule
   | RemoveRuleEvent RuleId
-  deriving Show
+  deriving (Show)
 
 newtype Scheduler = Scheduler (TQueue SchedulerRuleEvent)
 

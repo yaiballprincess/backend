@@ -13,6 +13,7 @@ import Data.Vector qualified as V
 
 --
 
+import Contravariant.Extras
 import YIBP.Core.Id
 import YIBP.Core.Rule
 import YIBP.Db
@@ -22,7 +23,6 @@ import YIBP.Db.Id.Encoders qualified as E
 import YIBP.Db.Rule.Decoders
 import YIBP.Db.Rule.Encoders
 import YIBP.Db.Rule.Types
-import Contravariant.Extras
 
 getAllRules :: (WithDb) => IO (V.Vector RawRule)
 getAllRules = withConn $ Session.run (Session.statement () stmt)
@@ -58,7 +58,7 @@ insertRule r = withConn $ Session.run (Session.statement r stmt)
         True
 
 updateRule :: (WithDb) => Id Rule -> Rule -> IO Bool
-updateRule rId rule = withConn $ Session.run ((==1) <$> Session.statement (rId, rule) stmt)
+updateRule rId rule = withConn $ Session.run ((== 1) <$> Session.statement (rId, rule) stmt)
   where
     stmt =
       Statement
@@ -68,17 +68,17 @@ updateRule rId rule = withConn $ Session.run ((==1) <$> Session.statement (rId, 
         D.rowsAffected
         True
 
-deleteRule :: WithDb => Id Rule -> IO Bool
-deleteRule rId = withConn $ Session.run ((==1) <$> Session.statement rId stmt)
+deleteRule :: (WithDb) => Id Rule -> IO Bool
+deleteRule rId = withConn $ Session.run ((== 1) <$> Session.statement rId stmt)
   where
-    stmt = 
+    stmt =
       Statement
         "delete from \"rule\" where id = $1"
         idParams
         D.rowsAffected
         True
 
-setCanTriggerFalseBatch :: WithDb => V.Vector (Id Rule) -> IO ()
+setCanTriggerFalseBatch :: (WithDb) => V.Vector (Id Rule) -> IO ()
 setCanTriggerFalseBatch vec = withConn $ Session.run (Session.statement vec stmt)
   where
     stmt =

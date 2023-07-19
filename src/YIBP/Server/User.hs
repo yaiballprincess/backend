@@ -23,8 +23,8 @@ data UserAPI route = UserAPI
   { _register
       :: route
         :- Auth '[JWT] AuthData
-        :> ReqBody '[JSON] CreateUserParam
-        :> Post '[JSON] (Id User)
+          :> ReqBody '[JSON] CreateUserParam
+          :> Post '[JSON] (Id User)
   }
   deriving (Generic)
 

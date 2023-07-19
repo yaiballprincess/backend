@@ -5,8 +5,8 @@ module YIBP.Db.Receiver where
 import YIBP.Db
 
 import YIBP.Core.Id
-import YIBP.Core.Sender
 import YIBP.Core.Receiver
+import YIBP.Core.Sender
 
 import YIBP.Db.Id.Encoders
 
@@ -34,7 +34,7 @@ insertReceiver ir = withConn $ Session.run ((== 1) <$> Session.statement ir stmt
         D.rowsAffected
         True
 
-getReceiversOfSender :: WithDb => Id SenderTag -> IO (V.Vector Receiver)
+getReceiversOfSender :: (WithDb) => Id SenderTag -> IO (V.Vector Receiver)
 getReceiversOfSender senderId = withConn $ Session.run (Session.statement senderId stmt)
   where
     stmt =

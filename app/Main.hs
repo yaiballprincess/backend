@@ -1,8 +1,8 @@
 {-# LANGUAGE DerivingStrategies #-}
+
 module Main where
 
-import qualified MyLib (runApp)
-
+import MyLib qualified (runApp)
 
 main :: IO ()
 main = do

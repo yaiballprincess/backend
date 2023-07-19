@@ -10,13 +10,13 @@ import YIBP.Db
 import YIBP.Db.PollTemplate qualified as Db
 import YIBP.Db.Rule qualified as Db
 import YIBP.Db.Rule.Types
-import YIBP.Service.Sender qualified as Service
 import YIBP.Scheduler (WithScheduler)
 import YIBP.Scheduler qualified as S
+import YIBP.Service.Sender qualified as Service
 
-import Data.Vector qualified as V
 import Control.Exception (Exception, throwIO)
 import Control.Monad.IO.Class
+import Data.Vector qualified as V
 
 data RuleDoesNotExist = RuleDoesNotExist
   deriving (Show, Eq, Exception)
@@ -60,10 +60,10 @@ deleteRule rId = do
     False -> throwIO RuleDoesNotExist
     True -> S.removeRule rId
 
-getAllRules :: WithDb => IO (V.Vector (IdObject Rule))
+getAllRules :: (WithDb) => IO (V.Vector (IdObject Rule))
 getAllRules = V.map tr <$> Db.getAllRulesCanTrigger
   where
-    tr r = IdObject { id = r.id, value = Rule { metadata = r.metadata, isActive = r.isActive }}
+    tr r = IdObject {id = r.id, value = Rule {metadata = r.metadata, isActive = r.isActive}}
 
-markRulesObsolete :: WithDb => V.Vector (Id Rule) -> IO ()
+markRulesObsolete :: (WithDb) => V.Vector (Id Rule) -> IO ()
 markRulesObsolete = Db.setCanTriggerFalseBatch

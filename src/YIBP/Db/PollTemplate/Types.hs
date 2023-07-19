@@ -2,8 +2,8 @@ module YIBP.Db.PollTemplate.Types where
 
 import Data.Text qualified as T
 import Data.Time
-import YIBP.Core.PollTemplate qualified as Core
 import YIBP.Core.Id
+import YIBP.Core.PollTemplate qualified as Core
 
 data InsertPollTemplateParams = InsertPollTemplateParams
   { isMultiple :: !Bool

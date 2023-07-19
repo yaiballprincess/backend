@@ -59,7 +59,7 @@ encryptRandom msg = do
   iv <- genRandomIV
   pure $ EncryptedValue iv (encrypt iv msg)
 
-encryptCryptoTextRandom 
+encryptCryptoTextRandom
   :: (CRT.MonadRandom m)
   => CryptoText 'Decrypted
   -> m (CryptoText 'Encrypted)

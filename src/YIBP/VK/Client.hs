@@ -14,9 +14,9 @@ module YIBP.VK.Client
 
 import Data.Aeson
 import Data.Text qualified as T
-import Data.Vector qualified as V
 import Data.Time
 import Data.Time.Clock.POSIX
+import Data.Vector qualified as V
 
 import Data.Function
 import Network.Wreq
@@ -25,7 +25,6 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Aeson.Optics
 
 import Optics
-
 
 import Control.Exception (Exception, throwIO)
 
@@ -48,9 +47,9 @@ instance FromJSON VKError where
   parseJSON = withObject "VKError" $ \o -> do
     VKError
       <$> o
-      .: "error_code"
+        .: "error_code"
       <*> o
-      .: "error_msg"
+        .: "error_msg"
       <*> ( do
               arr :: Array <- o .: "request_params"
               V.forM arr $
@@ -127,6 +126,7 @@ sendMethod client methodName req = do
       Right x -> pure $ Right x
 
 sendMethodUnsafe :: (FromJSON resp, MonadIO m) => VKClient -> T.Text -> [(T.Text, T.Text)] -> m resp
-sendMethodUnsafe c m r = sendMethod c m r >>= \case
-  Left err -> liftIO $ throwIO err
-  Right x -> pure x
+sendMethodUnsafe c m r =
+  sendMethod c m r >>= \case
+    Left err -> liftIO $ throwIO err
+    Right x -> pure x

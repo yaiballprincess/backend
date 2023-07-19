@@ -14,42 +14,42 @@ import Control.Monad.Except
 import Deriving.Aeson
 import YIBP.Core.Id
 import YIBP.Db
-import YIBP.Service.PollTemplate qualified as Service
 import YIBP.Error
+import YIBP.Service.PollTemplate qualified as Service
 
 data PollTemplateAPI route = PollTemplateAPI
   { _add
       :: route
         :- ReqBody '[JSON] CreatePollTemplate
-        :> Post '[JSON] (Id PollTemplate)
+          :> Post '[JSON] (Id PollTemplate)
   , _addOption
       :: route
         :- Capture "id" (Id PollTemplate)
-        :> "options"
-        :> ReqBody '[JSON] PollTemplateOption
-        :> Post '[JSON] (Id PollTemplateOption)
+          :> "options"
+          :> ReqBody '[JSON] PollTemplateOption
+          :> Post '[JSON] (Id PollTemplateOption)
   , _update
       :: route
         :- Capture "id" (Id PollTemplate)
-        :> ReqBody '[JSON] UpdatePollTemplate
-        :> Put '[JSON] NoContent
+          :> ReqBody '[JSON] UpdatePollTemplate
+          :> Put '[JSON] NoContent
   , _updateOption
       :: route
         :- Capture "id" (Id PollTemplate)
-        :> "options"
-        :> Capture "option-id" (Id PollTemplateOption)
-        :> ReqBody '[JSON] PollTemplateOption
-        :> Put '[JSON] NoContent
+          :> "options"
+          :> Capture "option-id" (Id PollTemplateOption)
+          :> ReqBody '[JSON] PollTemplateOption
+          :> Put '[JSON] NoContent
   , _remove
       :: route
         :- Capture "id" (Id PollTemplate)
-        :> Delete '[JSON] NoContent
+          :> Delete '[JSON] NoContent
   , _removeOption
       :: route
         :- Capture "id" (Id PollTemplate)
-        :> "options"
-        :> Capture "option-id" (Id PollTemplateOption)
-        :> Delete '[JSON] NoContent
+          :> "options"
+          :> Capture "option-id" (Id PollTemplateOption)
+          :> Delete '[JSON] NoContent
   , _get
       :: route
         :- Get '[JSON] (V.Vector PollTemplateFull)
@@ -79,7 +79,7 @@ addOptionHandler ptId pto =
 updateHandler :: (WithDb) => Id PollTemplate -> UpdatePollTemplate -> Handler NoContent
 updateHandler ptId upt = do
   liftIO (Service.updatePollTemplate ptId upt)
-    `catch` (\(_ :: Service.PollTemplateNotFound) -> raiseServantError (HttpError @Service.PollTemplateNotFound "poll template not found") err404)    
+    `catch` (\(_ :: Service.PollTemplateNotFound) -> raiseServantError (HttpError @Service.PollTemplateNotFound "poll template not found") err404)
   pure NoContent
 
 updateOptionHandler :: (WithDb) => Id PollTemplate -> Id PollTemplateOption -> PollTemplateOption -> Handler NoContent
@@ -91,7 +91,7 @@ updateOptionHandler ptId ptoId pto = do
 removeHandler :: (WithDb) => Id PollTemplate -> Handler NoContent
 removeHandler ptId = do
   liftIO (Service.removePollTemplate ptId)
-    `catch` (\(_ :: Service.PollTemplateNotFound) -> raiseServantError (HttpError @Service.PollTemplateNotFound "poll template not found") err404)        
+    `catch` (\(_ :: Service.PollTemplateNotFound) -> raiseServantError (HttpError @Service.PollTemplateNotFound "poll template not found") err404)
   pure NoContent
 
 removeOptionHandler :: (WithDb) => Id PollTemplate -> Id PollTemplateOption -> Handler NoContent

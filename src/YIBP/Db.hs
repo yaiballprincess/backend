@@ -1,13 +1,14 @@
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
+
 module YIBP.Db where
 
-import GHC.Stack (HasCallStack, prettyCallStack, callStack)
+import GHC.Stack (HasCallStack, callStack, prettyCallStack)
 
 import Control.Exception
 
-import Hasql.Session qualified as Session
 import Hasql.Connection (Connection)
+import Hasql.Session qualified as Session
 
 newtype DbException = DbException ((HasCallStack) => Session.QueryError)
 
@@ -19,15 +20,16 @@ deriving anyclass instance Exception DbException
 type WithDb = (?dbConn :: Connection)
 
 withConnEither
-  :: WithDb
+  :: (WithDb)
   => (Connection -> IO a)
   -> IO a
 withConnEither f = f ?dbConn
 
 withConn
-  :: WithDb
+  :: (WithDb)
   => (Connection -> IO (Either Session.QueryError a))
   -> IO a
-withConn f = withConnEither f >>= \case
-  Left err -> throwIO (DbException err)
-  Right x -> pure x
+withConn f =
+  withConnEither f >>= \case
+    Left err -> throwIO (DbException err)
+    Right x -> pure x

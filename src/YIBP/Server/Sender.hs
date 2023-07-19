@@ -23,31 +23,31 @@ data SenderAPI route = SenderAPI
   { _addSender
       :: route
         :- ReqBody '[JSON] CreateSenderParam
-        :> Post '[JSON] (Id SenderTag)
+          :> Post '[JSON] (Id SenderTag)
   , _removeSender
       :: route
         :- Capture "id" (Id SenderTag)
-        :> Delete '[JSON] NoContent
+          :> Delete '[JSON] NoContent
   , _getSenders
       :: route
         :- Get '[JSON] (V.Vector SenderTrimmed)
   , _addReceiver
       :: route
         :- Capture "id" (Id SenderTag)
-        :> "receivers"
-        :> ReqBody '[JSON] CreateReceiverParam
-        :> Post '[JSON] NoContent
+          :> "receivers"
+          :> ReqBody '[JSON] CreateReceiverParam
+          :> Post '[JSON] NoContent
   , _getReceivers
       :: route
         :- Capture "id" (Id SenderTag)
-        :> "receivers"
-        :> Get '[JSON] (V.Vector Receiver)
+          :> "receivers"
+          :> Get '[JSON] (V.Vector Receiver)
   , _removeReceiver
       :: route
         :- Capture "id" (Id SenderTag)
-        :> "receivers"
-        :> Capture "peer-id" PeerIdParam
-        :> Delete '[JSON] NoContent
+          :> "receivers"
+          :> Capture "peer-id" PeerIdParam
+          :> Delete '[JSON] NoContent
   }
   deriving (Generic)
 

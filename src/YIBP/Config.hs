@@ -36,8 +36,7 @@ type WithConfig = (?appConfig :: Config)
 withConfig :: (WithConfig) => (Config -> a) -> a
 withConfig f = f ?appConfig
 
-
-getConfig :: WithConfig => Config
+getConfig :: (WithConfig) => Config
 getConfig = ?appConfig
 
 parseDbConfig :: IO DbConfig

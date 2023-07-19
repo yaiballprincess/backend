@@ -28,7 +28,7 @@ data Sender (s :: EncryptionStatus) = Sender
   { name :: !T.Text
   , accessToken :: !(CryptoText s)
   , bot :: !(Maybe (BotSender s))
-  } 
+  }
 
 deriving instance Show (Sender 'Decrypted)
 deriving instance Show (Sender 'Encrypted)
