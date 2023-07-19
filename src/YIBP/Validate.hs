@@ -1,6 +1,7 @@
 module YIBP.Validate
   ( ValidationError (..)
   , validateOrThrowServerError
+  , throwValidationError
   , removeDetails
   , Validated
   , ValidatedList
@@ -41,7 +42,10 @@ validateOrThrowServerError
   -> m result
 validateOrThrowServerError = \case
   Right x -> pure x
-  Left err -> throwError $ transformServantError (validationErrorToHttpError err) err400
+  Left err -> throwValidationError err
+
+throwValidationError :: forall m a details. (MonadError ServerError m, ValidationErrorToHttpError details, ToJSON (HttpError (ValidationError details) details)) => ValidationError details -> m a
+throwValidationError err = throwError $ transformServantError (validationErrorToHttpError err) err400
 
 class ValidationErrorToHttpError details where
   validationErrorToHttpError :: ValidationError details -> HttpError (ValidationError details) details

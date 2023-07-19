@@ -18,6 +18,7 @@ import YIBP.Db
 import YIBP.Error
 import YIBP.Scheduler
 import YIBP.Service.Rule qualified as Service
+import YIBP.Validate
 
 data RuleAPI route = RuleAPI
   { _add
@@ -48,12 +49,15 @@ theRuleAPI =
     }
 
 addHandler :: (WithDb, WithScheduler) => Rule -> Handler (Id Rule)
-addHandler r = liftIO $ Service.createRule r
+addHandler r =
+  liftIO (Service.createRule r)
+    `catch` (\(Service.RuleValidationError details) -> throwValidationError (ValidationErrorWithDetails "rule is invalid" (map show details)))
 
 updateHandler :: (WithDb, WithScheduler) => Id Rule -> Rule -> Handler NoContent
 updateHandler rId rule = do
   liftIO (Service.updateRule rId rule)
     `catch` (\Service.RuleDoesNotExist -> raiseServantError (HttpError @Service.RuleDoesNotExist "rule does not exist") err404)
+    `catch` (\(Service.RuleValidationError details) -> throwValidationError (ValidationErrorWithDetails "rule is invalid" (map show details)))
   pure NoContent
 
 removeHandler :: (WithDb, WithScheduler) => Id Rule -> Handler NoContent

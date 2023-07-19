@@ -10,11 +10,15 @@ import YIBP.Db
 import YIBP.Db.PollTemplate qualified as Db
 import YIBP.Db.Rule qualified as Db
 import YIBP.Db.Rule.Types
+import YIBP.Db.Sender qualified as Db
 import YIBP.Scheduler (WithScheduler)
 import YIBP.Scheduler qualified as S
+import YIBP.Scheduler.Util qualified as S
 import YIBP.Service.Sender qualified as Service
 
 import Control.Exception (Exception, throwIO)
+import Data.Foldable
+import Data.Time
 import Data.Vector qualified as V
 
 data RuleDoesNotExist = RuleDoesNotExist
@@ -41,17 +45,66 @@ getAllActiveRules = V.catMaybes . V.map tr <$> Db.getAllRules
       | r.isActive && r.canTrigger = Just (r.id, Rule {metadata = r.metadata, isActive = r.isActive})
       | otherwise = Nothing
 
+data RuleValidationErrorDetails
+  = InvalidSender
+  | InvalidPollTemplate
+  | PollTemplateIsEmpty
+  | InvalidRegularRule
+  | InvalidTime
+  deriving (Show)
+
+newtype RuleValidationError = RuleValidationError [RuleValidationErrorDetails]
+  deriving stock (Show)
+  deriving anyclass (Exception)
+
+validatePollTemplate :: (WithDb) => Id PollTemplate -> IO (Maybe [RuleValidationErrorDetails])
+validatePollTemplate ptId =
+  Db.getPollTemplateById ptId >>= \case
+    Just t
+      | V.null t.options -> pure $ Just [PollTemplateIsEmpty]
+      | otherwise -> pure Nothing
+    Nothing -> pure $ Just [InvalidPollTemplate]
+
+validateCronMatch :: (WithDb) => Id Rule -> UTCTime -> IO (Maybe [RuleValidationErrorDetails])
+validateCronMatch regularRuleId t =
+  Db.getRuleById regularRuleId >>= \case
+    Just (RawRule _ (RMRegular rr) _ _)
+      | S.scheduleMatches rr.schedule t -> pure Nothing
+      | otherwise -> pure $ Just [InvalidTime]
+    _ -> pure $ Just [InvalidRegularRule]
+
+validateRule :: (WithDb) => Rule -> IO (Maybe [RuleValidationErrorDetails])
+validateRule (Rule (RMRegular rule) _) = do
+  senderError <-
+    Db.getSenderById rule.senderId >>= \case
+      Just _ -> pure Nothing
+      Nothing -> pure $ Just [InvalidSender]
+  pollTemplateError <- validatePollTemplate rule.pollTemplateId
+  pure $ fold [senderError, pollTemplateError]
+validateRule (Rule (RMIgnore rule) _) = do
+  validateCronMatch rule.regularRuleId rule.sendAt
+validateRule (Rule (RMReplace rule) _) = do
+  timeError <- validateCronMatch rule.regularRuleId rule.sendAt
+  pollTemplateError <- validatePollTemplate rule.newPollTemplateId
+  pure $ fold [timeError, pollTemplateError]
+
 createRule :: (WithScheduler, WithDb) => Rule -> IO (Id Rule)
 createRule rule = do
-  rId <- Db.insertRule rule
-  S.addRule rId rule
-  pure rId
+  validateRule rule >>= \case
+    Just errors -> throwIO $ RuleValidationError errors
+    Nothing -> do
+      rId <- Db.insertRule rule
+      S.addRule rId rule
+      pure rId
 
 updateRule :: (WithDb, WithScheduler) => Id Rule -> Rule -> IO ()
 updateRule rId rule = do
-  Db.updateRule rId rule >>= \case
-    False -> throwIO RuleDoesNotExist
-    True -> S.editRule rId rule
+  validateRule rule >>= \case
+    Just errors -> throwIO $ RuleValidationError errors
+    Nothing -> do
+      Db.updateRule rId rule >>= \case
+        False -> throwIO RuleDoesNotExist
+        True -> S.editRule rId rule
 
 deleteRule :: (WithDb, WithScheduler) => Id Rule -> IO ()
 deleteRule rId = do

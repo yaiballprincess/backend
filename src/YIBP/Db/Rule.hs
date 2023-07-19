@@ -24,6 +24,16 @@ import YIBP.Db.Rule.Decoders
 import YIBP.Db.Rule.Encoders
 import YIBP.Db.Rule.Types
 
+getRuleById :: (WithDb) => Id Rule -> IO (Maybe RawRule)
+getRuleById ruleId = withConn $ Session.run (Session.statement ruleId stmt)
+  where
+    stmt =
+      Statement
+        "select id, metadata, can_trigger, is_active from \"rule\" where id = $1"
+        E.idParams
+        (D.rowMaybe ruleRow)
+        True
+
 getAllRules :: (WithDb) => IO (V.Vector RawRule)
 getAllRules = withConn $ Session.run (Session.statement () stmt)
   where
