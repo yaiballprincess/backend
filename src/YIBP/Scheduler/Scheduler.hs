@@ -157,7 +157,7 @@ runScheduler' = loop
   where
     getDelay state = do
       curTime <- getCurrentTime
-      let delta = diffUTCTime curTime <$> getNearestEventTime state
+      let delta = (`diffUTCTime` curTime) <$> getNearestEventTime state
       let delay = floorDoubleInt . (* 1_000_000) . realToFrac <$> delta
       pure $ max 0 (fromMaybe maxBound delay)
     Scheduler queue = withScheduler id
