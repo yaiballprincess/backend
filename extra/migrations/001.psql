@@ -55,3 +55,16 @@ CREATE TABLE "send_log" (
   "error_msg" TEXT,
   "poll_id" TEXT
 );
+
+CREATE FUNCTION delete_obsolete_rules() RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  DELETE FROM "rule" WHERE can_trigger = false;
+  RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER trigger_delete_obsolete_rules
+AFTER UPDATE OF can_trigger ON "rule"
+EXECUTE PROCEDURE delete_obsolete_rules();
