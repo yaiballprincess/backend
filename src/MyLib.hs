@@ -60,10 +60,11 @@ runApp = do
           _ <- withLabel "service" ("scheduler" :: String) $ loggedForkIO runScheduler
           _ <- loggedForkIO initScheduler
           runSettings (serverSettings config) $
-            genericServeTWithContext
-              id
-              theAPI
-              (defaultJWTSettings config.jwk :. defaultCookieSettings :. EmptyContext)
+            loggerMiddleware $
+              genericServeTWithContext
+                id
+                theAPI
+                (defaultJWTSettings config.jwk :. defaultCookieSettings :. EmptyContext)
   where
     serverSettings cfg = defaultSettings & setPort cfg.serverPort & setOnException onExceptionHandler
     onExceptionHandler req exc = do
@@ -71,3 +72,7 @@ runApp = do
         withLabel "exception" (show exc) $ do
           logMsg Error $ "Exception " +| show exc |+ " while handling request " +| show req |+ ""
       defaultOnException req exc
+    loggerMiddleware app req respFunc = do
+      withLabel "service" ("server" :: String) $ do
+        logMsg Debug $ "New request: " +| show req |+ ""
+        app req respFunc
