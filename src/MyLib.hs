@@ -1,11 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module MyLib (runApp) where
 
-import Network.Wai.Handler.Warp (run)
+import Network.Wai.Handler.Warp
+  ( defaultOnException
+  , defaultSettings
+  , runSettings
+  , setOnException
+  , setPort
+  )
 import Servant
 import Servant.Server.Generic
 
 -- import qualified Data.Text as T
+
+import Data.Function ((&))
 import Data.Text.Encoding (encodeUtf8)
 
 import Hasql.Connection
@@ -17,6 +26,8 @@ import YIBP.Logger
 import YIBP.Scheduler
 import YIBP.Scheduler.Scheduler
 import YIBP.Server
+
+import Fmt
 
 runWithScheduler :: Scheduler -> ((WithScheduler) => IO a) -> IO a
 runWithScheduler sc a = let ?scheduler = sc in a
@@ -48,8 +59,15 @@ runApp = do
         runWithScheduler scheduler $ do
           _ <- withLabel "service" ("scheduler" :: String) $ loggedForkIO runScheduler
           _ <- loggedForkIO initScheduler
-          run config.serverPort $
+          runSettings (serverSettings config) $
             genericServeTWithContext
               id
               theAPI
               (defaultJWTSettings config.jwk :. defaultCookieSettings :. EmptyContext)
+  where
+    serverSettings cfg = defaultSettings & setPort cfg.serverPort & setOnException onExceptionHandler
+    onExceptionHandler req exc = do
+      withLabel "service" ("server" :: String) $
+        withLabel "exception" (show exc) $ do
+          logMsg Error $ "Exception " +| show exc |+ " while handling request " +| show req |+ ""
+      defaultOnException req exc
