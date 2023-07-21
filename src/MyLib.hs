@@ -8,8 +8,6 @@ import Servant.Server.Generic
 -- import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 
-import Optics
-
 import Hasql.Connection
 import Hasql.Connection qualified as Connection
 import Servant.Auth.Server (defaultCookieSettings, defaultJWTSettings)
@@ -54,4 +52,4 @@ runApp = do
             genericServeTWithContext
               id
               theAPI
-              (defaultJWTSettings (config ^. #jwk) :. defaultCookieSettings :. EmptyContext)
+              (defaultJWTSettings config.jwk :. defaultCookieSettings :. EmptyContext)
