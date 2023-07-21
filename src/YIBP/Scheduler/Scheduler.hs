@@ -30,13 +30,13 @@ import Control.Monad
 import YIBP.Scheduler
 import YIBP.Scheduler.Util
 
-import YIBP.Logger
 import YIBP.Core.Id
 import YIBP.Core.PollTemplate
 import YIBP.Core.Rule
 import YIBP.Core.Sender
 import YIBP.Crypto
 import YIBP.Db
+import YIBP.Logger
 import YIBP.Service.Rule qualified as Service
 import YIBP.VK.Client ((=--=))
 import YIBP.VK.Client qualified as VK

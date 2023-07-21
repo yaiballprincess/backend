@@ -45,7 +45,7 @@ runWithLogger cfg act = do
     logger <- mkJsonLogger (LoggerConfig severityToText (const True)) (hPutBuilder handle)
     L.withLogger logger act
 
-loggedForkIO :: WithLogger => (WithLogger => IO a) -> IO ThreadId
+loggedForkIO :: (WithLogger) => ((WithLogger) => IO a) -> IO ThreadId
 loggedForkIO act = forkIO $ do
   threadId <- myThreadId
   void $ L.withLabel "threadId" (show threadId) act
