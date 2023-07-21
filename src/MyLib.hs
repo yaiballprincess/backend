@@ -10,7 +10,6 @@ import Data.Text.Encoding (encodeUtf8)
 
 import Optics
 
-import Control.Concurrent
 import Hasql.Connection
 import Hasql.Connection qualified as Connection
 import Servant.Auth.Server (defaultCookieSettings, defaultJWTSettings)
@@ -51,7 +50,7 @@ runApp = do
         runWithScheduler scheduler $ do
           _ <- withLabel "service" ("scheduler" :: String) $ loggedForkIO runScheduler
           _ <- loggedForkIO initScheduler
-          run 8080 $
+          run config.serverPort $
             genericServeTWithContext
               id
               theAPI

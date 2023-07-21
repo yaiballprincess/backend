@@ -29,6 +29,7 @@ data Config = Config
   , accessTokenDuration :: !NominalDiffTime
   , refreshTokenDuration :: !NominalDiffTime
   , logDirectory :: !OsPath
+  , serverPort :: !Int
   }
   deriving (Show, Eq)
 
@@ -70,6 +71,7 @@ parseConfig = do
   unless (isValid logDirectory) $ do
     throwIO InvalidLogDirectory
   Just (jwkConfig :: JWK) <- liftIO $ J.decodeFileStrict' jwtFilePath
+  port <- read <$> getEnv "YIBP_BACKEND_PORT"
   pure $
     Config
       { dbSettings = dbConfig
@@ -77,6 +79,7 @@ parseConfig = do
       , accessTokenDuration = 30 * minuteInSeconds
       , refreshTokenDuration = 60 * nominalDay
       , logDirectory = logDirectory
+      , serverPort = port
       }
   where
     minuteInSeconds = 60
