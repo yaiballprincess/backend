@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module MyLib (runApp) where
 
 import Network.Wai.Handler.Warp (run)
@@ -15,6 +16,7 @@ import Hasql.Connection qualified as Connection
 import Servant.Auth.Server (defaultCookieSettings, defaultJWTSettings)
 import YIBP.Config
 import YIBP.Db
+import YIBP.Logger
 import YIBP.Scheduler
 import YIBP.Scheduler.Scheduler
 import YIBP.Server
@@ -43,11 +45,14 @@ runApp = do
   let connSettings = getConnectionSettings config.dbSettings
   Right conn <- Connection.acquire connSettings
   scheduler <- mkScheduler
-  runWithConfig config $ runWithDb conn $ runWithScheduler scheduler $ do
-    _ <- forkIO runScheduler
-    _ <- forkIO initScheduler
-    run 8080 $
-      genericServeTWithContext
-        id
-        theAPI
-        (defaultJWTSettings (config ^. #jwk) :. defaultCookieSettings :. EmptyContext)
+  runWithLogger config $
+    runWithConfig config $
+      runWithDb conn $
+        runWithScheduler scheduler $ do
+          _ <- withLabel "service" ("scheduler" :: String) $ loggedForkIO runScheduler
+          _ <- loggedForkIO initScheduler
+          run 8080 $
+            genericServeTWithContext
+              id
+              theAPI
+              (defaultJWTSettings (config ^. #jwk) :. defaultCookieSettings :. EmptyContext)

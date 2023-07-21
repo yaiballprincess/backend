@@ -6,8 +6,11 @@ import Crypto.JOSE.JWK (JWK)
 import Data.Aeson qualified as J
 import Data.Text qualified as T
 
+import Control.Exception
+import Control.Monad
 import Control.Monad.IO.Class
 import System.Environment
+import System.OsPath
 
 import Optics (makeFieldLabelsNoPrefix)
 
@@ -25,6 +28,7 @@ data Config = Config
   , jwk :: !JWK
   , accessTokenDuration :: !NominalDiffTime
   , refreshTokenDuration :: !NominalDiffTime
+  , logDirectory :: !OsPath
   }
   deriving (Show, Eq)
 
@@ -55,10 +59,16 @@ parseDbConfig = do
       , db = T.pack dbName
       }
 
+data InvalidLogDirectory = InvalidLogDirectory
+  deriving (Show, Eq, Exception)
+
 parseConfig :: IO Config
 parseConfig = do
   dbConfig <- parseDbConfig
   jwtFilePath <- getEnv "JWT_CONFIG_FILEPATH"
+  logDirectory <- encodeFS =<< getEnv "LOG_DIRECTORY"
+  unless (isValid logDirectory) $ do
+    throwIO InvalidLogDirectory
   Just (jwkConfig :: JWK) <- liftIO $ J.decodeFileStrict' jwtFilePath
   pure $
     Config
@@ -66,6 +76,7 @@ parseConfig = do
       , jwk = jwkConfig
       , accessTokenDuration = 30 * minuteInSeconds
       , refreshTokenDuration = 60 * nominalDay
+      , logDirectory = logDirectory
       }
   where
     minuteInSeconds = 60

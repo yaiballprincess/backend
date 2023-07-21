@@ -30,6 +30,7 @@ import Control.Monad
 import YIBP.Scheduler
 import YIBP.Scheduler.Util
 
+import YIBP.Logger
 import YIBP.Core.Id
 import YIBP.Core.PollTemplate
 import YIBP.Core.Rule
@@ -148,13 +149,13 @@ deleteRuleS state rId
                 }
   | otherwise = state
 
-runScheduler :: (WithDb, WithScheduler) => IO ()
+runScheduler :: (WithDb, WithScheduler, WithLogger) => IO ()
 runScheduler = do
   tz <- getCurrentTimeZone
   runScheduler' (SchedulerState IntMap.empty IntMap.empty IntMap.empty tz)
 
 runScheduler'
-  :: (WithDb, WithScheduler)
+  :: (WithDb, WithScheduler, WithLogger)
   => SchedulerState
   -> IO ()
 runScheduler' = loop
@@ -167,7 +168,7 @@ runScheduler' = loop
     Scheduler queue = withScheduler id
     loop state = do
       delay <- getDelay state
-      putStrLn $ "Sleeping for " <> show delay <> " us"
+      logMsg Debug $ "Sleeping for " +| show delay |+ " us"
       s' <-
         doSTMWithTimeout delay (readTQueue queue) >>= \case
           Nothing -> do
@@ -176,13 +177,13 @@ runScheduler' = loop
             let rulesToBeExecuted = [(i, r) | (i, r) <- IntMap.assocs rulesToBeUpdated, not (regularRuleShouldBeIgnored state r)]
             _ <- forkIO $ forM_ rulesToBeExecuted $ \(i, r) -> do
               execRule state i r
-                `catch` (\(e :: SomeException) -> putStrLn $ "Failed to send message according to rule" <> show r <> " with error: " <> show e)
+                `catch` (\(e :: SomeException) -> logMsg Error $ "Failed to send message according to rule" +| show r |+ " with error: " +| show e |+ "")
             let rulesToDelete = getRuleIdsToDelete curTime state
             Service.markRulesObsolete (IntSet.toList rulesToDelete & map Id & V.fromList)
             let state' = IntSet.foldl' deleteRuleS state rulesToDelete
             pure $ updateNextTimes curTime state' rulesToBeUpdated
           Just ev -> do
-            putStrLn $ "Got new event: " <> show ev
+            logMsg Debug $ "New event: " +| show ev |+ ""
             onRuleEvent ev state
       loop s'
 
