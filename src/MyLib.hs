@@ -14,7 +14,6 @@ import Servant.Server.Generic
 
 import Data.Function ((&))
 
-import Hasql.Connection
 import Servant.Auth.Server (defaultCookieSettings, defaultJWTSettings)
 import YIBP.Config
 import YIBP.Db
@@ -25,10 +24,10 @@ import YIBP.Server
 
 import Fmt
 
-runWithScheduler :: Scheduler -> ((WithScheduler) => IO a) -> IO a
+runWithScheduler :: Scheduler -> (WithScheduler => IO a) -> IO a
 runWithScheduler sc a = let ?scheduler = sc in a
 
-runWithConfig :: Config -> ((WithConfig) => IO a) -> IO a
+runWithConfig :: Config -> (WithConfig => IO a) -> IO a
 runWithConfig config a = let ?appConfig = config in a
 
 runApp :: IO ()
