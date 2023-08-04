@@ -12,10 +12,7 @@ import Network.Wai.Handler.Warp
 import Servant
 import Servant.Server.Generic
 
--- import qualified Data.Text as T
-
 import Data.Function ((&))
-import Data.Text.Encoding (encodeUtf8)
 
 import Hasql.Connection
 import Hasql.Connection qualified as Connection
@@ -38,14 +35,6 @@ runWithDb conn a = let ?dbConn = conn in a
 runWithConfig :: Config -> ((WithConfig) => IO a) -> IO a
 runWithConfig config a = let ?appConfig = config in a
 
-getConnectionSettings :: DbConfig -> Connection.Settings
-getConnectionSettings dbConf =
-  Connection.settings
-    (encodeUtf8 dbConf.host)
-    (fromIntegral dbConf.port)
-    (encodeUtf8 dbConf.user)
-    (encodeUtf8 dbConf.password)
-    (encodeUtf8 dbConf.db)
 
 runApp :: IO ()
 runApp = do

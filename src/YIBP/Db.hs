@@ -7,8 +7,13 @@ import GHC.Stack (HasCallStack, callStack, prettyCallStack)
 
 import Control.Exception
 
+import Data.Text.Encoding (encodeUtf8)
+
 import Hasql.Connection (Connection)
+import Hasql.Connection qualified as Connection
 import Hasql.Session qualified as Session
+
+import YIBP.Config
 
 newtype DbException = DbException ((HasCallStack) => Session.QueryError)
 
@@ -33,3 +38,12 @@ withConn f =
   withConnEither f >>= \case
     Left err -> throwIO (DbException err)
     Right x -> pure x
+
+getConnectionSettings :: DbConfig -> Connection.Settings
+getConnectionSettings dbConf =
+  Connection.settings
+    (encodeUtf8 dbConf.host)
+    (fromIntegral dbConf.port)
+    (encodeUtf8 dbConf.user)
+    (encodeUtf8 dbConf.password)
+    (encodeUtf8 dbConf.db)
