@@ -11,9 +11,12 @@
         hpkgs = pkgs.haskell.packages.ghc945;
       in {
         devShell = pkgs.mkShell {
-	        buildInputs = [
+	        nativeBuildInputs = [
 	          hpkgs.haskell-language-server
+
 	          hpkgs.cabal-fmt
+	          hpkgs.fourmolu
+
 	          pkgs.cabal-install
 	          pkgs.haskell.compiler.ghc94
 
