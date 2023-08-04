@@ -2,6 +2,7 @@ module YIBP.Service.User
   ( NotEnoughPermissionsError (..)
   , UserConflictError (..)
   , registerUser
+  , makePassword
   ) where
 
 import Control.Exception

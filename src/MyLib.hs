@@ -28,9 +28,6 @@ import Fmt
 runWithScheduler :: Scheduler -> ((WithScheduler) => IO a) -> IO a
 runWithScheduler sc a = let ?scheduler = sc in a
 
-runWithDb :: Connection -> ((WithDb) => IO a) -> IO a
-runWithDb conn a = let ?dbConn = conn in a
-
 runWithConfig :: Config -> ((WithConfig) => IO a) -> IO a
 runWithConfig config a = let ?appConfig = config in a
 

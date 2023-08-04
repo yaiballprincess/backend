@@ -65,10 +65,11 @@ library
   -- Modules exported by the library.
   exposed-modules:
     MyLib
+    YIBP.CLI.CreateAdmin
     YIBP.CLI.Migrate
 
   -- Modules included in this library but not exported.
-  -- cabal-fmt: expand src/ -MyLib
+  -- cabal-fmt: expand src/ -MyLib -YIBP.CLI -YIBP.CLI.*
   other-modules:
     YIBP.Config
     YIBP.Core.Auth
@@ -166,11 +167,11 @@ library
     , cron
     , cryptonite
     , deriving-aeson
-    , directory ^>= 1.3.8.1
+    , directory             ^>=1.3.8.1
     , exceptions
     , file-embed
+    , file-io               ^>=0.1.0.1
     , filepath              ^>=1.4.100.1
-    , file-io ^>=0.1.0.1
     , fmt
     , hasql                 ==1.6.3
     , hasql-th

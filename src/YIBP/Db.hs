@@ -24,6 +24,9 @@ deriving anyclass instance Exception DbException
 
 type WithDb = (?dbConn :: Connection)
 
+runWithDb :: Connection -> ((WithDb) => IO a) -> IO a
+runWithDb conn a = let ?dbConn = conn in a
+
 withConnEither
   :: (WithDb)
   => (Connection -> IO a)
