@@ -42,7 +42,7 @@ withConfig :: (WithConfig) => (Config -> a) -> a
 withConfig f = f ?appConfig
 
 getConfig :: (WithConfig) => Config
-getConfig = ?appConfig
+getConfig = withConfig id
 
 parseDbConfig :: IO DbConfig
 parseDbConfig = do
