@@ -40,7 +40,9 @@ runApp :: IO ()
 runApp = do
   config <- parseConfig
   let connSettings = getConnectionSettings config.dbSettings
-  Right conn <- Connection.acquire connSettings
+  conn <- Connection.acquire connSettings >>= \case 
+    Left err -> error $ "an error occured while connecting to database: " <> show err 
+    Right x -> pure x
   scheduler <- mkScheduler
   runWithLogger config $
     runWithConfig config $
