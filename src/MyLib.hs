@@ -33,6 +33,7 @@ runWithConfig config a = let ?appConfig = config in a
 runApp :: IO ()
 runApp = do
   config <- parseConfig
+  _ <- putStrLn $ "running server on port " <> show config.serverPort <> "!"
   conn <- makeConnection config.dbSettings
   scheduler <- mkScheduler
   runWithLogger config $
