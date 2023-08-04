@@ -15,7 +15,6 @@ import Servant.Server.Generic
 import Data.Function ((&))
 
 import Hasql.Connection
-import Hasql.Connection qualified as Connection
 import Servant.Auth.Server (defaultCookieSettings, defaultJWTSettings)
 import YIBP.Config
 import YIBP.Db
@@ -35,14 +34,10 @@ runWithDb conn a = let ?dbConn = conn in a
 runWithConfig :: Config -> ((WithConfig) => IO a) -> IO a
 runWithConfig config a = let ?appConfig = config in a
 
-
 runApp :: IO ()
 runApp = do
   config <- parseConfig
-  let connSettings = getConnectionSettings config.dbSettings
-  conn <- Connection.acquire connSettings >>= \case 
-    Left err -> error $ "an error occured while connecting to database: " <> show err 
-    Right x -> pure x
+  conn <- makeConnection config.dbSettings
   scheduler <- mkScheduler
   runWithLogger config $
     runWithConfig config $

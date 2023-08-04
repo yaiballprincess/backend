@@ -7,7 +7,6 @@ import Data.FileEmbed
 import YIBP.Config
 import YIBP.Db
 
-import Hasql.Connection qualified as Connection
 import Hasql.Session qualified as Session
 
 import Data.Maybe (fromMaybe)
@@ -19,8 +18,7 @@ import Fmt
 doMigrations :: IO ()
 doMigrations = do
   cfg <- parseConfig
-  let connSettings = getConnectionSettings cfg.dbSettings
-  Right conn <- Connection.acquire connSettings
+  conn <- makeConnection cfg.dbSettings
   Session.run (Session.sql migrations) conn >>= \case
     Right () -> putStrLn "succesfully applied migrations"
     Left (Session.QueryError _ _ (Session.ClientError t)) -> do

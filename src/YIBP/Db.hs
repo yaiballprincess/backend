@@ -47,3 +47,11 @@ getConnectionSettings dbConf =
     (encodeUtf8 dbConf.user)
     (encodeUtf8 dbConf.password)
     (encodeUtf8 dbConf.db)
+
+makeConnection :: DbConfig -> IO Connection
+makeConnection cfg =
+  Connection.acquire connSettings >>= \case
+    Left err -> error $ "an error occured while connecting to database: " <> show err
+    Right x -> pure x
+  where
+    connSettings = getConnectionSettings cfg
