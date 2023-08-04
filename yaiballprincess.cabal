@@ -63,7 +63,9 @@ library
   import:             warnings
 
   -- Modules exported by the library.
-  exposed-modules:    MyLib
+  exposed-modules:
+    MyLib
+    YIBP.CLI.Migrate
 
   -- Modules included in this library but not exported.
   -- cabal-fmt: expand src/ -MyLib
