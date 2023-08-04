@@ -13,6 +13,7 @@
         devShell = pkgs.mkShell {
 	        buildInputs = [
 	          hpkgs.haskell-language-server
+	          hpkgs.cabal-fmt
 	          pkgs.cabal-install
 	          pkgs.haskell.compiler.ghc94
 
