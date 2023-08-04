@@ -46,4 +46,4 @@ createAdmin = do
   runWithDb conn $
     insertUser user >>= \case
       Nothing -> putStrLn "an error occured while creating user 'admin'"
-      Just _ -> T.putStrLn $ "successfully created user 'admin' with password '" +| plainPassword |+ ""
+      Just _ -> T.putStrLn $ "successfully created user 'admin' with password '" +| plainPassword |+ "'"
