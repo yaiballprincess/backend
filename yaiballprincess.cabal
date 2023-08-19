@@ -127,6 +127,7 @@ library
     YIBP.Service.User
     YIBP.Service.VK
     YIBP.Util
+    YIBP.Util.Retry
     YIBP.Util.WithId
     YIBP.Validate
     YIBP.VK.Client

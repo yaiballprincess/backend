@@ -38,6 +38,7 @@ import YIBP.Crypto
 import YIBP.Db
 import YIBP.Logger
 import YIBP.Service.Rule qualified as Service
+import YIBP.Util.Retry qualified as R
 import YIBP.VK.Client ((=--=))
 import YIBP.VK.Client qualified as VK
 import YIBP.VK.Types
@@ -235,7 +236,7 @@ getFullCandidate c = do
   where
     tr (s, pt) = CandidateFull {sender = s, peerId = c.peerId, pollTemplate = pt}
 
-execRule :: (WithDb, WithConfig) => SchedulerState -> Int -> RegularRuleContext -> IO ()
+execRule :: (WithDb, WithLogger, WithConfig) => SchedulerState -> Int -> RegularRuleContext -> IO ()
 execRule state rId ctx = do
   fullCandidate <-
     getFullCandidate candidate >>= \case
@@ -284,23 +285,25 @@ createPoll client tmpl groupId = do
     Left _ -> pure Nothing
     Right (VK.WithResponse poll) -> pure $ Just (poll.ownerId, poll.id)
 
-sendMessage :: CandidateFull -> IO ()
+sendMessage :: WithLogger => CandidateFull -> IO ()
 sendMessage c = do
   let userClient = VK.mkDefaultClient c.sender.accessToken
   let senderClient = VK.mkDefaultClient (getSenderToken c.sender)
   (ownerId, pollId) <-
-    createPoll userClient c.pollTemplate ((.id) <$> c.sender.bot) >>= \case
+    R.retry (createPoll userClient c.pollTemplate ((.id) <$> c.sender.bot)) >>= \case
       Nothing -> throwIO $ SendMessageError "unable to create poll template"
       Just p -> pure p
   let attachment :: T.Text = "poll" +| ownerId |+ "_" +| pollId |+ ""
   randomId :: Int <- fst . randomR (1, maxBound) <$> newStdGen
-  VK.sendMethod @(VK.WithResponse ())
-    senderClient
-    "messages.send"
-    [ "peer_id" =--= c.peerId
-    , "attachment" =--= attachment
-    , "random_id" =--= randomId
-    ]
+  R.retry
+    ( VK.sendMethod @(VK.WithResponse ())
+        senderClient
+        "messages.send"
+        [ "peer_id" =--= c.peerId
+        , "attachment" =--= attachment
+        , "random_id" =--= randomId
+        ]
+    )
     >>= \case
       Left _ -> throwIO $ SendMessageError "unable to send message"
       Right _ -> pure ()
