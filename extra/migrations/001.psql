@@ -48,12 +48,12 @@ CREATE TABLE "rule" (
   "is_active" BOOL NOT NULL
 );
 
-CREATE TABLE "send_log" (
+CREATE TABLE "message_log" (
   "id" SERIAL NOT NULL PRIMARY KEY,
-  "is_failed" BOOL NOT NULL,
   "sent_at" TIMESTAMP WITH TIME ZONE NOT NULL,
   "error_msg" TEXT,
-  "poll_id" TEXT
+  "poll_id" TEXT,
+  CHECK ((error_msg IS NULL) != (poll_id IS NULL))
 );
 
 CREATE FUNCTION delete_obsolete_rules() RETURNS trigger
