@@ -69,11 +69,13 @@ library
     YIBP.CLI.Migrate
 
   -- Modules included in this library but not exported.
-  -- cabal-fmt: expand src/ -MyLib -YIBP.CLI -YIBP.CLI.*
+  -- cabal-fmt: expand src/ -MyLib -YIBP.CLI -YIBP.CLI.CreateAdin -YIBP.CLI.Migrate
   other-modules:
+    YIBP.CLI.CreateAdmin
     YIBP.Config
     YIBP.Core.Auth
     YIBP.Core.Id
+    YIBP.Core.MessageLog
     YIBP.Core.PollTemplate
     YIBP.Core.Receiver
     YIBP.Core.Rule
@@ -84,6 +86,9 @@ library
     YIBP.Db
     YIBP.Db.Id.Decoders
     YIBP.Db.Id.Encoders
+    YIBP.Db.MessageLog.Decoders
+    YIBP.Db.MessageLog.Encoders
+    YIBP.Db.MessageLog.Types
     YIBP.Db.PollTemplate
     YIBP.Db.PollTemplate.Decoders
     YIBP.Db.PollTemplate.Encoders
