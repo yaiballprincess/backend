@@ -21,7 +21,7 @@ import YIBP.Config
 
 import System.Directory.OsPath
 import System.File.OsPath (withFile)
-import System.IO (IOMode (..))
+import System.IO (BufferMode (..), IOMode (..), hSetBuffering)
 import System.OsPath
 
 import Data.ByteString.Builder
@@ -42,6 +42,7 @@ runWithLogger cfg act = do
       >>= encodeFS
       <&> (\p -> cfg.logDirectory </> p)
   withFile path WriteMode $ \handle -> do
+    hSetBuffering handle LineBuffering
     logger <- mkJsonLogger (LoggerConfig severityToText (const True)) (hPutBuilder handle)
     L.withLogger logger act
 
