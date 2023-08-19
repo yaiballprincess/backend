@@ -12,6 +12,7 @@ import Data.Vector qualified as V
 import GHC.Generics
 
 import Control.Monad.Catch (catch)
+import YIBP.Config
 import YIBP.Core.Id
 import YIBP.Core.Rule
 import YIBP.Db
@@ -39,7 +40,7 @@ data RuleAPI route = RuleAPI
   }
   deriving (Generic)
 
-theRuleAPI :: (WithDb, WithScheduler) => RuleAPI (AsServerT Handler)
+theRuleAPI :: (WithDb, WithConfig, WithScheduler) => RuleAPI (AsServerT Handler)
 theRuleAPI =
   RuleAPI
     { _add = addHandler

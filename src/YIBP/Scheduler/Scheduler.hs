@@ -42,6 +42,8 @@ import YIBP.VK.Client ((=--=))
 import YIBP.VK.Client qualified as VK
 import YIBP.VK.Types
 
+import YIBP.Config
+
 import Fmt
 
 import Data.Maybe
@@ -149,13 +151,13 @@ deleteRuleS state rId
                 }
   | otherwise = state
 
-runScheduler :: (WithDb, WithScheduler, WithLogger) => IO ()
+runScheduler :: (WithDb, WithScheduler, WithLogger, WithConfig) => IO ()
 runScheduler = do
   tz <- getCurrentTimeZone
   runScheduler' (SchedulerState IntMap.empty IntMap.empty IntMap.empty tz)
 
 runScheduler'
-  :: (WithDb, WithScheduler, WithLogger)
+  :: (WithDb, WithScheduler, WithLogger, WithConfig)
   => SchedulerState
   -> IO ()
 runScheduler' = loop
@@ -227,13 +229,13 @@ data CandidateFull = CandidateFull
   }
   deriving (Show)
 
-getFullCandidate :: (WithDb) => Candidate -> IO (Maybe CandidateFull)
+getFullCandidate :: (WithDb, WithConfig) => Candidate -> IO (Maybe CandidateFull)
 getFullCandidate c = do
   fmap tr <$> Service.getDetailedRegularRule (c.senderId, c.pollTemplateId)
   where
     tr (s, pt) = CandidateFull {sender = s, peerId = c.peerId, pollTemplate = pt}
 
-execRule :: (WithDb) => SchedulerState -> Int -> RegularRuleContext -> IO ()
+execRule :: (WithDb, WithConfig) => SchedulerState -> Int -> RegularRuleContext -> IO ()
 execRule state rId ctx = do
   fullCandidate <-
     getFullCandidate candidate >>= \case

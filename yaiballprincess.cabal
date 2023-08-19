@@ -81,7 +81,6 @@ library
     YIBP.Core.Session
     YIBP.Core.User
     YIBP.Crypto
-    YIBP.Crypto.TH
     YIBP.Db
     YIBP.Db.Id.Decoders
     YIBP.Db.Id.Encoders

@@ -13,6 +13,8 @@ import YIBP.Db.Receiver.Types
 import YIBP.Db.Sender qualified as Db
 import YIBP.Db.Sender.Types
 
+import YIBP.Config
+
 import Control.Exception (Exception, throwIO)
 
 import Data.Vector qualified as V
@@ -23,7 +25,7 @@ data ReceiverConflict = ReceiverConflict
 data ReceiverDoesNotExist = ReceiverDoesNotExist
   deriving (Show, Eq, Exception)
 
-createReceiver :: (WithDb) => Id SenderTag -> CreateReceiverParam -> IO ()
+createReceiver :: (WithDb, WithConfig) => Id SenderTag -> CreateReceiverParam -> IO ()
 createReceiver senderId crp = do
   rawSender <-
     Db.getSenderById senderId >>= \case

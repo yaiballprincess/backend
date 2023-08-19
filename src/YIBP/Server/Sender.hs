@@ -19,6 +19,8 @@ import Control.Monad.Catch (catch)
 import Control.Monad.IO.Class
 import YIBP.Error
 
+import YIBP.Config
+
 data SenderAPI route = SenderAPI
   { _addSender
       :: route
@@ -51,7 +53,7 @@ data SenderAPI route = SenderAPI
   }
   deriving (Generic)
 
-theSenderAPI :: (WithDb) => SenderAPI (AsServerT Handler)
+theSenderAPI :: (WithDb, WithConfig) => SenderAPI (AsServerT Handler)
 theSenderAPI =
   SenderAPI
     { _addSender = addSenderHandler
@@ -62,7 +64,7 @@ theSenderAPI =
     , _removeReceiver = removeReceiverHandler
     }
 
-addSenderHandler :: (WithDb) => CreateSenderParam -> Handler (Id SenderTag)
+addSenderHandler :: (WithDb, WithConfig) => CreateSenderParam -> Handler (Id SenderTag)
 addSenderHandler csp =
   liftIO (Service.createSender csp)
     `catch` (\(Service.VKUserError e) -> raiseServantError (HttpErrorWithDetails @Service.VKUserError "VK API user error: maybe user token is invalid" e) err422)
@@ -78,7 +80,7 @@ removeSenderHandler senderId = do
 getSendersHandler :: (WithDb) => Handler (V.Vector SenderTrimmed)
 getSendersHandler = liftIO Service.getSendersTrimmed
 
-addReceiverHandler :: (WithDb) => Id SenderTag -> CreateReceiverParam -> Handler NoContent
+addReceiverHandler :: (WithDb, WithConfig) => Id SenderTag -> CreateReceiverParam -> Handler NoContent
 addReceiverHandler senderId crp = do
   liftIO (Service.createReceiver senderId crp)
     `catch` (\Service.SenderDoesNotExist -> raiseServantError (HttpError @Service.SenderDoesNotExist "Sender with such id does not exist") err404)

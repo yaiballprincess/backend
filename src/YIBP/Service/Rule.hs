@@ -20,11 +20,12 @@ import Control.Exception (Exception, throwIO)
 import Data.Foldable
 import Data.Time
 import Data.Vector qualified as V
+import YIBP.Config
 
 data RuleDoesNotExist = RuleDoesNotExist
   deriving (Show, Eq, Exception)
 
-getDetailedRegularRule :: (WithDb) => (Id SenderTag, Id PollTemplate) -> IO (Maybe (Sender 'Decrypted, PollTemplate))
+getDetailedRegularRule :: (WithDb, WithConfig) => (Id SenderTag, Id PollTemplate) -> IO (Maybe (Sender 'Decrypted, PollTemplate))
 getDetailedRegularRule (sId, pId) = runMaybeT $ do
   sender <- MaybeT $ Service.getSenderById sId
   pt <- MaybeT $ Db.getPollTemplateById pId

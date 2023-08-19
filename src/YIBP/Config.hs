@@ -4,6 +4,7 @@ import Data.Time.Clock
 
 import Crypto.JOSE.JWK (JWK)
 import Data.Aeson qualified as J
+import Data.ByteString qualified as BS
 import Data.Text qualified as T
 
 import Control.Exception
@@ -26,6 +27,7 @@ data DbConfig = DbConfig
 data Config = Config
   { dbSettings :: !DbConfig
   , jwk :: !JWK
+  , secretKey :: !BS.ByteString
   , accessTokenDuration :: !NominalDiffTime
   , refreshTokenDuration :: !NominalDiffTime
   , logDirectory :: !OsPath
@@ -63,6 +65,17 @@ parseDbConfig = do
 data InvalidLogDirectory = InvalidLogDirectory
   deriving (Show, Eq, Exception)
 
+data InvalidSecretKey = InvalidSecretKey
+  deriving (Show, Eq, Exception)
+
+parseSecretKey :: IO BS.ByteString
+parseSecretKey = do
+  secretKeyFilePath <- getEnv "SECRET_KEY_FILEPATH"
+  secretKey <- BS.readFile secretKeyFilePath
+  when (BS.length secretKey /= 32) $ do
+    throwIO InvalidSecretKey
+  pure secretKey
+
 parseConfig :: IO Config
 parseConfig = do
   dbConfig <- parseDbConfig
@@ -72,10 +85,12 @@ parseConfig = do
     throwIO InvalidLogDirectory
   Just (jwkConfig :: JWK) <- liftIO $ J.decodeFileStrict' jwtFilePath
   port <- read <$> getEnv "YIBP_BACKEND_PORT"
+  secretKey <- parseSecretKey
   pure $
     Config
       { dbSettings = dbConfig
       , jwk = jwkConfig
+      , secretKey = secretKey
       , accessTokenDuration = 30 * minuteInSeconds
       , refreshTokenDuration = 60 * nominalDay
       , logDirectory = logDirectory

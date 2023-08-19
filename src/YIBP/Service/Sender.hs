@@ -21,22 +21,23 @@ import Control.Monad.Trans.Maybe
 import Data.Functor ((<&>))
 import Data.Maybe
 import Fmt
+import YIBP.Config
 import YIBP.VK.Client qualified as VK
 import YIBP.VK.Types
 
-decryptBotSender :: BotSender 'Encrypted -> BotSender 'Decrypted
+decryptBotSender :: WithConfig => BotSender 'Encrypted -> BotSender 'Decrypted
 decryptBotSender bot =
   BotSender
     { accessToken = decryptCryptoText bot.accessToken
     , id = bot.id
     }
 
-encryptBotSender :: BotSender 'Decrypted -> IO (BotSender 'Encrypted)
+encryptBotSender :: WithConfig => BotSender 'Decrypted -> IO (BotSender 'Encrypted)
 encryptBotSender bot = do
   encryptedAccessToken <- encryptCryptoTextRandom bot.accessToken
   pure $ BotSender {accessToken = encryptedAccessToken, id = bot.id}
 
-decryptSender :: Sender 'Encrypted -> Sender 'Decrypted
+decryptSender :: WithConfig => Sender 'Encrypted -> Sender 'Decrypted
 decryptSender sender =
   Sender
     { name = sender.name
@@ -44,7 +45,7 @@ decryptSender sender =
     , bot = decryptBotSender <$> sender.bot
     }
 
-encryptSender :: Sender 'Decrypted -> IO (Sender 'Encrypted)
+encryptSender :: WithConfig => Sender 'Decrypted -> IO (Sender 'Encrypted)
 encryptSender sender = do
   encryptedAccessToken <- encryptCryptoTextRandom sender.accessToken
   encryptedBot <- case sender.bot of
@@ -68,7 +69,7 @@ newtype VKGroupError = VKGroupError Int
 data SenderConflict = SenderConflict
   deriving (Show, Eq, Exception)
 
-createSender :: (WithDb) => CreateSenderParam -> IO (Id SenderTag)
+createSender :: (WithDb, WithConfig) => CreateSenderParam -> IO (Id SenderTag)
 createSender csp = do
   let userClient = VK.mkDefaultClient csp.accessToken
   userName <-

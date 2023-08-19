@@ -13,8 +13,6 @@ module YIBP.Crypto
   , decryptCryptoText
   ) where
 
-import YIBP.Crypto.TH
-
 import Data.ByteArray qualified as BA
 import Data.ByteString qualified as BS
 import Data.Text qualified as T
@@ -25,17 +23,16 @@ import Crypto.Cipher.Types (BlockCipher (..), Cipher (..), IV, makeIV)
 import Crypto.Error
 import Crypto.Random.Types qualified as CRT
 
+import YIBP.Config
+
 data EncryptionStatus = Encrypted | Decrypted
 
 type family CryptoText (s :: EncryptionStatus) where
   CryptoText Encrypted = BS.ByteString
   CryptoText Decrypted = T.Text
 
-cryptoKey :: BS.ByteString
-cryptoKey = $(cryptoKeyTH "extra/random-key.default")
-
-cryptoCipher :: AES256
-cryptoCipher = case cipherInit cryptoKey of
+cryptoCipher :: WithConfig => AES256
+cryptoCipher = case cipherInit getConfig.secretKey of
   CryptoFailed err -> error $ "unexpected error: Unable to initialize cipher: " <> show err
   CryptoPassed x -> x
 
@@ -50,30 +47,31 @@ genRandomIV = do
   bytes :: BS.ByteString <- CRT.getRandomBytes $ blockSize (undefined :: AES256)
   pure $ unsafeMakeIV bytes
 
-encrypt, decrypt :: IV AES256 -> BS.ByteString -> BS.ByteString
+encrypt, decrypt :: WithConfig => IV AES256 -> BS.ByteString -> BS.ByteString
 encrypt = ctrCombine cryptoCipher
 decrypt = encrypt
 
-encryptRandom :: (CRT.MonadRandom m) => BS.ByteString -> m EncryptedValue
+encryptRandom :: (WithConfig, CRT.MonadRandom m) => BS.ByteString -> m EncryptedValue
 encryptRandom msg = do
   iv <- genRandomIV
   pure $ EncryptedValue iv (encrypt iv msg)
 
 encryptCryptoTextRandom
-  :: (CRT.MonadRandom m)
+  :: (WithConfig, CRT.MonadRandom m)
   => CryptoText 'Decrypted
   -> m (CryptoText 'Encrypted)
 encryptCryptoTextRandom t = encryptedToByteString <$> encryptRandom (T.encodeUtf8 t)
 
 decryptCryptoText
-  :: CryptoText 'Encrypted
+  :: WithConfig
+  => CryptoText 'Encrypted
   -> CryptoText 'Decrypted
 decryptCryptoText = T.decodeUtf8 . decryptEncryptedRaw
 
-decrypt' :: EncryptedValue -> BS.ByteString
+decrypt' :: WithConfig => EncryptedValue -> BS.ByteString
 decrypt' (EncryptedValue iv bs) = decrypt iv bs
 
-decryptEncryptedRaw :: BS.ByteString -> BS.ByteString
+decryptEncryptedRaw :: WithConfig => BS.ByteString -> BS.ByteString
 decryptEncryptedRaw = decrypt' . byteStringToEncrypted
 
 data EncryptedValue = EncryptedValue !(IV AES256) !BS.ByteString
