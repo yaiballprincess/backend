@@ -54,12 +54,14 @@ instance Show PasswordValidationError where
   show PasswordContainsNotEnoughLetters = "password should contain at least 4 letters"
 
 validatePassword :: PasswordParam -> ValidatedVector PasswordValidationError T.Text
-validatePassword (PasswordParam rawPassword) =
-  ( validatedVectorSimple (T.length rawPassword >= 8) PasswordIsTooShort
-      *> validatedVectorSimple (count isDigit rawPassword >= 2) PasswordContainsNotEnoughDigits
-      *> validatedVectorSimple (count isLetter rawPassword >= 4) PasswordContainsNotEnoughLetters
-  )
-    $> rawPassword
+validatePassword (PasswordParam rawPassword)
+  | T.length rawPassword >= 16 = pure rawPassword
+  | otherwise =
+      ( validatedVectorSimple (T.length rawPassword >= 8) PasswordIsTooShort
+          *> validatedVectorSimple (count isDigit rawPassword >= 2) PasswordContainsNotEnoughDigits
+          *> validatedVectorSimple (count isLetter rawPassword >= 4) PasswordContainsNotEnoughLetters
+      )
+        $> rawPassword
 
 data CreateUserParam = CreateUserParam
   { username :: !UsernameParam
