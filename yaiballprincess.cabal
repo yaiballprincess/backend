@@ -69,9 +69,8 @@ library
     YIBP.CLI.Migrate
 
   -- Modules included in this library but not exported.
-  -- cabal-fmt: expand src/ -MyLib -YIBP.CLI -YIBP.CLI.CreateAdin -YIBP.CLI.Migrate
+  -- cabal-fmt: expand src/ -MyLib -YIBP.CLI -YIBP.CLI.CreateAdmin -YIBP.CLI.Migrate
   other-modules:
-    YIBP.CLI.CreateAdmin
     YIBP.Config
     YIBP.Core.Auth
     YIBP.Core.Id
