@@ -79,7 +79,7 @@ modifyRegularRuleContext IgnoreRuleTag f ctx = ctx {ignoreRuleIds = f ctx.ignore
 
 regularRuleShouldBeIgnored :: SchedulerState -> RegularRuleContext -> Bool
 regularRuleShouldBeIgnored state ctx =
-  any (\r -> r.sendAt == ctx.nextTime) $
+  any (\r -> (r.startsAt <= ctx.nextTime) && (ctx.nextTime <= r.endsAt)) $
     ctx.ignoreRuleIds
       & IntSet.toList
       & mapMaybe (`IntMap.lookup` state.ignoreRules)
@@ -193,8 +193,8 @@ runScheduler' = loop
 getRuleIdsToDelete :: UTCTime -> SchedulerState -> IntSet
 getRuleIdsToDelete curTime state =
   regularRuleIdsToDelete
-    <> IntMap.keysSet (IntMap.filter (\x -> x.sendAt < curTime) state.ignoreRules)
-    <> IntMap.keysSet (IntMap.filter (\x -> x.sendAt < curTime) state.replaceRules)
+    <> IntMap.keysSet (IntMap.filter (\x -> x.endsAt < curTime) state.ignoreRules)
+    <> IntMap.keysSet (IntMap.filter (\x -> x.endsAt < curTime) state.replaceRules)
   where
     regularRuleIdsToDelete = IntMap.foldlWithKey' go IntSet.empty state.regularRules
       where
@@ -253,17 +253,20 @@ execRule state rId ctx = do
         , pollTemplateId = ctx.rule.pollTemplateId
         }
     candidate :: Candidate
-    candidate = case IntSet.maxView ctx.replaceRuleIds of
-      Nothing -> defaultCandidate
-      Just (replaceRuleId, _) -> case IntMap.lookup replaceRuleId state.replaceRules of
-        Nothing -> defaultCandidate
-        Just replaceRule ->
-          Candidate
-            { ruleId = rId
-            , senderId = ctx.rule.senderId
-            , peerId = ctx.rule.peerId
-            , pollTemplateId = replaceRule.newPollTemplateId
-            }
+    candidate =
+      let m =
+            IntMap.restrictKeys state.replaceRules ctx.replaceRuleIds
+              & IntMap.filter (\replaceRule -> (replaceRule.startsAt <= ctx.nextTime) && (ctx.nextTime <= replaceRule.endsAt))
+              & IntMap.lookupMax
+      in  case m of
+            Nothing -> defaultCandidate
+            Just (_, replaceRule) ->
+              Candidate
+                { ruleId = rId
+                , senderId = ctx.rule.senderId
+                , peerId = ctx.rule.peerId
+                , pollTemplateId = replaceRule.newPollTemplateId
+                }
 
 newtype SendMessageError = SendMessageError T.Text
   deriving (Show, Eq)

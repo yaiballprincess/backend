@@ -45,13 +45,15 @@ data RegularRule = RegularRule
 
 data IgnoreRule = IgnoreRule
   { regularRuleId :: !(Id Rule)
-  , sendAt :: !UTCTime
+  , startsAt :: !UTCTime
+  , endsAt :: !UTCTime
   }
   deriving (Show, Generic, FromJSON, ToJSON)
 
 data ReplaceRule = ReplaceRule
   { regularRuleId :: !(Id Rule)
-  , sendAt :: !UTCTime
+  , startsAt :: !UTCTime
+  , endsAt :: !UTCTime
   , newPollTemplateId :: !(Id PollTemplate)
   }
   deriving (Show, Generic, FromJSON, ToJSON)
@@ -67,7 +69,8 @@ data RegularRuleFull = RegularRuleFull
 
 data ReplaceRuleFull = ReplaceRuleFull
   { regularRuleId :: !(Id Rule)
-  , sendAt :: !UTCTime
+  , startsAt :: !UTCTime
+  , endsAt :: !UTCTime
   , newPollTemplate :: !(IdObject PollTemplateFull)
   }
   deriving (Generic, ToJSON)

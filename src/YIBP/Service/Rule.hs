@@ -17,6 +17,7 @@ import YIBP.Scheduler.Util qualified as S
 import YIBP.Service.Sender qualified as Service
 
 import Control.Exception (Exception, throwIO)
+import Control.Monad
 import Data.Foldable
 import Data.Time
 import Data.Vector qualified as V
@@ -83,9 +84,16 @@ validateRule (Rule (RMRegular rule) _) = do
   pollTemplateError <- validatePollTemplate rule.pollTemplateId
   pure $ fold [senderError, pollTemplateError]
 validateRule (Rule (RMIgnore rule) _) = do
-  validateCronMatch rule.regularRuleId rule.sendAt
+  timeError <-
+    if rule.startsAt > rule.endsAt
+      then pure $ Just [InvalidTime]
+      else pure Nothing
+  pure $ fold [timeError]
 validateRule (Rule (RMReplace rule) _) = do
-  timeError <- validateCronMatch rule.regularRuleId rule.sendAt
+  timeError <-
+    if rule.startsAt > rule.endsAt
+      then pure $ Just [InvalidTime]
+      else pure Nothing
   pollTemplateError <- validatePollTemplate rule.newPollTemplateId
   pure $ fold [timeError, pollTemplateError]
 
