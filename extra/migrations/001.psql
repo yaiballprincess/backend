@@ -32,6 +32,7 @@ CREATE TABLE "sender" (
   "access_token_enc" bytea NOT NULL,
   "bot_access_token_enc" bytea,
   "bot_id" int,
+  UNIQUE (user_id, bot_id),
   CHECK ((bot_access_token_enc is null) = (bot_id is null))
 );
 
