@@ -22,6 +22,7 @@ import Data.Functor ((<&>))
 import Data.Maybe
 import Fmt
 import YIBP.Config
+import YIBP.Core.Receiver
 import YIBP.VK.Client qualified as VK
 import YIBP.VK.Types
 
@@ -72,14 +73,14 @@ data SenderConflict = SenderConflict
 createSender :: (WithDb, WithConfig) => CreateSenderParam -> IO (Id SenderTag)
 createSender csp = do
   let userClient = VK.mkDefaultClient csp.accessToken
-  userName <-
+  (userName, userId) <-
     VK.sendMethod @(VK.WithResponse (V.Vector VKUserFull)) userClient "users.get" [] >>= \case
       Left err -> throwIO $ VKUserError err.errorCode
       Right (VK.WithResponse users) -> do
         let user = V.head users
         let firstName = fromMaybe "" user.firstName
         let lastName = fromMaybe "" user.lastName
-        pure $ firstName <> T.pack " " <> lastName
+        pure (firstName <> T.pack " " <> lastName, user.id)
   encryptedAccessToken <- encryptCryptoTextRandom csp.accessToken
   bot <- runMaybeT $ do
     botAccessToken <- MaybeT $ pure $ csp.botAccessToken
@@ -95,7 +96,8 @@ createSender csp = do
           pure $ BotSender {accessToken = encryptedBotAccessToken, id = group.id}
   Db.insertSender
     InsertSender
-      { name = userName
+      { userId = userId
+      , name = userName
       , accessToken = encryptedAccessToken
       , bot = bot
       }
@@ -123,6 +125,19 @@ getSendersTrimmed =
           }
     )
     <$> Db.getSendersTrimmed
+
+getSendersTrimmedWithReceivers :: (WithDb) => IO (V.Vector SenderTrimmedWithReceivers)
+getSendersTrimmedWithReceivers =
+  V.map
+    ( \s ->
+        SenderTrimmedWithReceivers
+          { id = idToInt s.id
+          , name = s.name
+          , botName = (\i -> "vk.com/club" +| i |+ "") <$> s.botId
+          , receivers = Receiver <$> s.receiverNames <*> s.receiverPeerIds
+          }
+    )
+    <$> Db.getSendersTrimmedWithReceivers
 
 getSenderById :: (WithDb) => Id SenderTag -> IO (Maybe (Sender 'Encrypted))
 getSenderById sId = fmap tr <$> Db.getSenderById sId

@@ -32,7 +32,7 @@ data SenderAPI route = SenderAPI
           :> Delete '[JSON] NoContent
   , _getSenders
       :: route
-        :- Get '[JSON] (V.Vector SenderTrimmed)
+        :- Get '[JSON] (V.Vector SenderTrimmedWithReceivers)
   , _addReceiver
       :: route
         :- Capture "id" (Id SenderTag)
@@ -77,8 +77,8 @@ removeSenderHandler senderId = do
     `catch` (\Service.SenderDoesNotExist -> raiseServantError (HttpError @Service.SenderDoesNotExist "Sender with such id does not exist") err404)
   pure NoContent
 
-getSendersHandler :: (WithDb) => Handler (V.Vector SenderTrimmed)
-getSendersHandler = liftIO Service.getSendersTrimmed
+getSendersHandler :: (WithDb) => Handler (V.Vector SenderTrimmedWithReceivers)
+getSendersHandler = liftIO Service.getSendersTrimmedWithReceivers
 
 addReceiverHandler :: (WithDb, WithConfig) => Id SenderTag -> CreateReceiverParam -> Handler NoContent
 addReceiverHandler senderId crp = do

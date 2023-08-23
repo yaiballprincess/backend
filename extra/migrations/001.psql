@@ -27,7 +27,8 @@ CREATE TABLE "poll_template_option" (
 
 CREATE TABLE "sender" (
   "id" SERIAL NOT NULL PRIMARY KEY,
-  "name" TEXT NOT NULL UNIQUE,
+  "user_id" INTEGER NOT NULL,
+  "name" TEXT NOT NULL,
   "access_token_enc" bytea NOT NULL,
   "bot_access_token_enc" bytea,
   "bot_id" int,

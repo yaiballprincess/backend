@@ -23,5 +23,6 @@ senderTrimmedRow :: Row RawSenderTrimmed
 senderTrimmedRow =
   RawSenderTrimmed
     <$> idRow
+    <*> column (nonNullable (fromIntegral <$> int4))
     <*> column (nonNullable text)
     <*> column (nullable (fromIntegral <$> int4))

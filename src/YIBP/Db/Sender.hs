@@ -4,9 +4,11 @@ module YIBP.Db.Sender
   ( insertSender
   , deleteSender
   , getSendersTrimmed
+  , getSendersTrimmedWithReceivers
   , getSenderById
   ) where
 
+import Hasql.Decoders qualified as D
 import Hasql.Decoders qualified as Decoders
 import Hasql.Encoders qualified as Encoders
 import Hasql.Session qualified as Session
@@ -29,8 +31,8 @@ insertSender is = withConn $ Session.run (Session.statement is stmt)
     stmt =
       Statement
         "insert into \"sender\" \
-        \ (name, access_token_enc, bot_access_token_enc, bot_id) \
-        \ values ($1, $2, $3, $4) \
+        \ (user_id, name, access_token_enc, bot_access_token_enc, bot_id) \
+        \ values ($1, $2, $3, $4, $5) \
         \ on conflict do nothing \
         \ returning id"
         insertSenderParams
@@ -52,10 +54,30 @@ getSendersTrimmed = withConn $ Session.run (Session.statement () stmt)
   where
     stmt =
       Statement
-        "select id, name, bot_id from \"sender\""
+        "select id, user_id, name, bot_id from \"sender\""
         Encoders.noParams
         (Decoders.rowVector senderTrimmedRow)
         True
+
+getSendersTrimmedWithReceivers :: (WithDb) => IO (V.Vector RawSenderTrimmedWithReceivers)
+getSendersTrimmedWithReceivers = withConn $ Session.run (Session.statement () stmt)
+  where
+    stmt =
+      Statement
+        "select id, user_id, sender.name, bot_id, array_agg(r.name), array_agg(r.peer_id) from \"sender\" \
+        \ inner join \"receiver\" r ON r.sender_id = sender.id \
+        \ group by sender.id"
+        Encoders.noParams
+        (Decoders.rowVector decoder)
+        True
+    decoder =
+      RawSenderTrimmedWithReceivers
+        <$> idRow
+        <*> D.column (D.nonNullable (fromIntegral <$> D.int4))
+        <*> D.column (D.nonNullable D.text)
+        <*> D.column (D.nullable (fromIntegral <$> D.int4))
+        <*> D.column (D.nonNullable (D.vectorArray (D.nonNullable D.text)))
+        <*> D.column (D.nonNullable (D.vectorArray (D.nonNullable (fromIntegral <$> D.int4))))
 
 getSenderById :: (WithDb) => Id SenderTag -> IO (Maybe RawSender)
 getSenderById senderId = withConn $ Session.run (Session.statement senderId stmt)

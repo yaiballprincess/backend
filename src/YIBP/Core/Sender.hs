@@ -5,6 +5,7 @@ module YIBP.Core.Sender
   , InsertSender (..)
   , CreateSenderParam (..)
   , SenderTrimmed (..)
+  , SenderTrimmedWithReceivers (..)
   , getSenderToken
   ) where
 
@@ -12,7 +13,10 @@ import YIBP.Crypto
 
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Text qualified as T
+import Data.Vector qualified as V
 import GHC.Generics (Generic)
+
+import YIBP.Core.Receiver
 
 data SenderTag
 
@@ -34,7 +38,8 @@ deriving instance Show (Sender 'Decrypted)
 deriving instance Show (Sender 'Encrypted)
 
 data InsertSender = InsertSender
-  { name :: !T.Text
+  { userId :: !Int
+  , name :: !T.Text
   , accessToken :: !(CryptoText 'Encrypted)
   , bot :: !(Maybe (BotSender 'Encrypted))
   }
@@ -49,6 +54,14 @@ data SenderTrimmed = SenderTrimmed
   { id :: !Int
   , name :: !T.Text
   , botName :: !(Maybe T.Text)
+  }
+  deriving (Generic, FromJSON, ToJSON)
+
+data SenderTrimmedWithReceivers = SenderTrimmedWithReceivers
+  { id :: !Int
+  , name :: !T.Text
+  , botName :: !(Maybe T.Text)
+  , receivers :: !(V.Vector Receiver)
   }
   deriving (Generic, FromJSON, ToJSON)
 
