@@ -34,6 +34,7 @@ data CreatePollTemplate = CreatePollTemplate
   , isAnonymous :: !Bool
   , endsAt :: !(Maybe UTCTime)
   , question :: !T.Text
+  , options :: !(V.Vector PollTemplateOption)
   }
   deriving (Generic, FromJSON, ToJSON)
 
@@ -42,6 +43,7 @@ data UpdatePollTemplate = UpdatePollTemplate
   , isAnonymous :: !Bool
   , endsAt :: !(Maybe UTCTime)
   , question :: !T.Text
+  , options :: !(V.Vector PollTemplateOption)
   }
   deriving (Generic, FromJSON, ToJSON)
 
@@ -51,6 +53,6 @@ data PollTemplateFull = PollTemplateFull
   , isAnonymous :: !Bool
   , endsAt :: !(Maybe UTCTime)
   , question :: !T.Text
-  , options :: !(V.Vector (IdObject PollTemplateOption))
+  , options :: !(V.Vector PollTemplateOption)
   }
   deriving (Show, Generic, ToJSON)

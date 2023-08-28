@@ -8,15 +8,17 @@ import YIBP.Db.PollTemplate.Types
 
 insertPollTemplateParams :: Params InsertPollTemplateParams
 insertPollTemplateParams =
-  ((\u -> u.isMultiple) >$< param (nonNullable bool))
-    <> ((\u -> u.isAnonymous) >$< param (nonNullable bool))
-    <> ((\u -> u.endsAt) >$< param (nullable timestamptz))
-    <> ((\u -> u.question) >$< param (nonNullable text))
+  ((.isMultiple) >$< param (nonNullable bool))
+    <> ((.isAnonymous) >$< param (nonNullable bool))
+    <> ((.endsAt) >$< param (nullable timestamptz))
+    <> ((.question) >$< param (nonNullable text))
+    <> ((.options) >$< param (nonNullable (foldableArray (nonNullable text))))
 
 updatePollTemplateParams :: Params UpdatePollTemplateParams
 updatePollTemplateParams =
-  ((\u -> u.id) >$< idParams)
-    <> ((\u -> u.isMultiple) >$< param (nonNullable bool))
-    <> ((\u -> u.isAnonymous) >$< param (nonNullable bool))
-    <> ((\u -> u.endsAt) >$< param (nullable timestamptz))
-    <> ((\u -> u.question) >$< param (nonNullable text))
+  ((.id) >$< idParams)
+    <> ((.isMultiple) >$< param (nonNullable bool))
+    <> ((.isAnonymous) >$< param (nonNullable bool))
+    <> ((.endsAt) >$< param (nullable timestamptz))
+    <> ((.question) >$< param (nonNullable text))
+    <> ((.options) >$< param (nonNullable (foldableArray (nonNullable text))))

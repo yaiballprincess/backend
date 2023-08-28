@@ -16,13 +16,8 @@ CREATE TABLE "poll_template" (
   "is_multiple" BOOL NOT NULL,
   "is_anonymous" BOOL NOT NULL,
   "duration" TIMESTAMP WITH TIME ZONE,
-  "question" TEXT NOT NULL
-);
-
-CREATE TABLE "poll_template_option" (
-  "id" SERIAL NOT NULL PRIMARY KEY,
-  "poll_template_id" INTEGER NOT NULL REFERENCES "poll_template" ON DELETE CASCADE,
-  "data" TEXT NOT NULL
+  "question" TEXT NOT NULL,
+  "options" TEXT[] NOT NULL CHECK (array_position(options, NULL) is NULL)
 );
 
 CREATE TABLE "sender" (

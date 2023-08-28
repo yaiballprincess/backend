@@ -30,11 +30,8 @@ getAllPollTemplates = withConn $ Session.run (Session.statement () stmt)
   where
     stmt =
       Statement
-        "select pt.id, pt.is_multiple, pt.is_anonymous, pt.duration, pt.question, \
-        \ array_remove(array_agg(po.id), NULL), array_remove(array_agg(po.data), NULL) \
-        \ from \"poll_template\" as pt \
-        \ left join \"poll_template_option\" po ON po.poll_template_id = pt.id \
-        \ group by pt.id"
+        "select id, is_multiple, is_anonymous, duration, question, options \
+        \ from \"poll_template\""
         Encoders.noParams
         (Decoders.rowVector pollTemplateFullRow)
         True
@@ -48,30 +45,10 @@ insertPollTemplate params = withConn $ Session.run (Session.statement params stm
     stmt =
       Statement
         "insert into \"poll_template\" \
-        \ (is_multiple, is_anonymous, duration, question) \
-        \ values ($1, $2, $3, $4) \
+        \ (is_multiple, is_anonymous, duration, question, options) \
+        \ values ($1, $2, $3, $4, $5) \
         \ returning id"
         insertPollTemplateParams
-        (Decoders.singleRow idRow)
-        True
-
-insertPollTemplateOption
-  :: (WithDb, HasCallStack)
-  => Id Core.PollTemplate
-  -> Core.PollTemplateOption
-  -> IO (Id Core.PollTemplateOption)
-insertPollTemplateOption ptId (Core.PollTemplateOption po) =
-  withConn $ Session.run (Session.statement (ptId, po) stmt)
-  where
-    stmt =
-      Statement
-        "insert into \"poll_template_option\" \
-        \ (poll_template_id, data) values ($1, $2) \
-        \ returning id"
-        ( contrazip2
-            idParams
-            (Encoders.param (Encoders.nonNullable Encoders.text))
-        )
         (Decoders.singleRow idRow)
         True
 
@@ -86,31 +63,9 @@ updatePollTemplate params =
       Statement
         "update \"poll_template\" set \
         \ is_multiple = $2, is_anonymous = $3, \
-        \ duration = $4, question = $5 \
+        \ duration = $4, question = $5, options = $6 \
         \ where id = $1"
         updatePollTemplateParams
-        Decoders.rowsAffected
-        True
-
-updatePollTemplateOption
-  :: (WithDb, HasCallStack)
-  => Id Core.PollTemplate
-  -> Id Core.PollTemplateOption
-  -> Core.PollTemplateOption
-  -> IO Bool
-updatePollTemplateOption ptId ptoId (Core.PollTemplateOption text) =
-  withConn $ Session.run ((== 1) <$> Session.statement (ptId, ptoId, text) stmt)
-  where
-    stmt =
-      Statement
-        "update \"poll_template_option\" set \
-        \ data = $3 \
-        \ where poll_template_id = $1 AND id = $2"
-        ( contrazip3
-            idParams
-            idParams
-            (Encoders.param (Encoders.nonNullable Encoders.text))
-        )
         Decoders.rowsAffected
         True
 
@@ -125,22 +80,6 @@ deletePollTemplate ptId =
         Decoders.rowsAffected
         True
 
-deletePollTemplateOption
-  :: (WithDb, HasCallStack)
-  => Id Core.PollTemplate
-  -> Id Core.PollTemplateOption
-  -> IO Bool
-deletePollTemplateOption ptId ptoId =
-  withConn $ Session.run ((== 1) <$> Session.statement (ptId, ptoId) stmt)
-  where
-    stmt =
-      Statement
-        "delete from \"poll_template_option\" \
-        \ where poll_template_id = $1 AND id = $2"
-        (contrazip2 idParams idParams)
-        Decoders.rowsAffected
-        True
-
 getPollTemplatesByIds
   :: (WithDb, HasCallStack)
   => V.Vector (Id Core.PollTemplate)
@@ -150,12 +89,9 @@ getPollTemplatesByIds ids =
   where
     stmt =
       Statement
-        "select pt.id, pt.is_multiple, pt.is_anonymous, pt.duration, pt.question, \
-        \ array_remove(array_agg(po.id), NULL), array_remove(array_agg(po.data), NULL) \
+        "select id, is_multiple, is_anonymous, duration, question, options \
         \ from \"poll_template\" as pt \
-        \ left join \"poll_template_option\" po ON po.poll_template_id = pt.id \
-        \ where pt.id = ANY($1) \
-        \ group by pt.id"
+        \ where id = ANY($1)"
         (Encoders.param $ Encoders.nonNullable $ Encoders.foldableArray $ Encoders.nonNullable Encoders.idValue)
         (Decoders.rowVector pollTemplateFullRow)
         True

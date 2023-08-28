@@ -2,6 +2,7 @@ module YIBP.Db.PollTemplate.Types where
 
 import Data.Text qualified as T
 import Data.Time
+import Data.Vector qualified as V
 import YIBP.Core.Id
 import YIBP.Core.PollTemplate qualified as Core
 
@@ -10,6 +11,7 @@ data InsertPollTemplateParams = InsertPollTemplateParams
   , isAnonymous :: !Bool
   , endsAt :: !(Maybe UTCTime)
   , question :: !T.Text
+  , options :: !(V.Vector T.Text)
   }
 
 data UpdatePollTemplateParams = UpdatePollTemplateParams
@@ -18,4 +20,5 @@ data UpdatePollTemplateParams = UpdatePollTemplateParams
   , isAnonymous :: !Bool
   , endsAt :: !(Maybe UTCTime)
   , question :: !T.Text
+  , options :: !(V.Vector T.Text)
   }

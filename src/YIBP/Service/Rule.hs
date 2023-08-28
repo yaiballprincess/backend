@@ -17,7 +17,6 @@ import YIBP.Scheduler.Util qualified as S
 import YIBP.Service.Sender qualified as Service
 
 import Control.Exception (Exception, throwIO)
-import Control.Monad
 import Data.Foldable
 import Data.Time
 import Data.Vector qualified as V
@@ -36,7 +35,7 @@ getDetailedRegularRule (sId, pId) = runMaybeT $ do
           , isAnonymous = pt.isAnonymous
           , endsAt = pt.endsAt
           , question = pt.question
-          , options = V.map ((.value)) pt.options
+          , options = pt.options
           }
   pure (Service.decryptSender sender, pt')
 
