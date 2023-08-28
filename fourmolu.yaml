@@ -8,4 +8,5 @@ indentation: 2
 let-style: inline
 newlines-between-decls: 1
 record-brace-space: true
+single-constraint-parens: auto
 respectful: true
