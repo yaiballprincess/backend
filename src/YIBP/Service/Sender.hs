@@ -134,7 +134,7 @@ getSendersTrimmedWithReceivers =
           { id = idToInt s.id
           , name = s.name
           , botName = (\i -> "vk.com/club" +| i |+ "") <$> s.botId
-          , receivers = Receiver <$> s.receiverNames <*> s.receiverPeerIds
+          , receivers = V.map (\(n, p) -> Receiver n p) (V.zip s.receiverNames s.receiverPeerIds)
           }
     )
     <$> Db.getSendersTrimmedWithReceivers
