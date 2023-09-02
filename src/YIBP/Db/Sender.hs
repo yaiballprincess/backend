@@ -64,8 +64,10 @@ getSendersTrimmedWithReceivers = withConn $ Session.run (Session.statement () st
   where
     stmt =
       Statement
-        "select id, user_id, sender.name, bot_id, array_agg(r.name), array_agg(r.peer_id) from \"sender\" \
-        \ inner join \"receiver\" r ON r.sender_id = sender.id \
+        "select id, user_id, sender.name, bot_id, \
+        \ array_remove(array_agg(r.name), NULL), \
+        \ array_remove(array_agg(r.peer_id), NULL) from \"sender\" \
+        \ left join \"receiver\" r ON r.sender_id = sender.id \
         \ group by sender.id"
         Encoders.noParams
         (Decoders.rowVector decoder)
