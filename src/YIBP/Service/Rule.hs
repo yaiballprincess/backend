@@ -112,7 +112,9 @@ updateRule rId rule = do
     Nothing -> do
       Db.updateRule rId rule >>= \case
         False -> throwIO RuleDoesNotExist
-        True -> S.editRule rId rule
+        True -> case rule.isActive of
+                    True -> S.editRule rId rule
+                    False -> S.removeRule rId
 
 deleteRule :: (WithDb, WithScheduler) => Id Rule -> IO ()
 deleteRule rId = do
