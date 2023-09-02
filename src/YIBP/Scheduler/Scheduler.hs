@@ -92,6 +92,7 @@ data SchedulerState = SchedulerState
   }
 
 addRuleS :: UTCTime -> SchedulerState -> Int -> Rule -> SchedulerState
+addRuleS _ state _ (Rule _ False) = state
 addRuleS curTime state rId (Rule (RMRegular rule) _) =
   case calculateNextExecTime rule.schedule curTime state.tz of
     Just t ->
