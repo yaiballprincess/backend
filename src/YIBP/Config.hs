@@ -14,6 +14,7 @@ import System.Environment
 import System.OsPath
 
 import Optics (makeFieldLabelsNoPrefix)
+import Data.Maybe
 
 data DbConfig = DbConfig
   { host :: !T.Text
@@ -84,7 +85,7 @@ parseConfig = do
   unless (isValid logDirectory) $ do
     throwIO InvalidLogDirectory
   Just (jwkConfig :: JWK) <- liftIO $ J.decodeFileStrict' jwtFilePath
-  port <- read <$> getEnv "YIBP_BACKEND_PORT"
+  port <- read . fromMaybe "8080" <$> lookupEnv "YIBP_BACKEND_PORT"
   secretKey <- parseSecretKey
   pure $
     Config
