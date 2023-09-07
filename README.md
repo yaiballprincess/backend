@@ -10,6 +10,26 @@ The application serves
 3. `cabal build`
 4. Path to executable: `cabal exec which yaiballprincess`
 
+## How to run (Docker)
+1. Generate JWK and save it to the file (say in folder `secrets`)
+2. Generate a "crypto key": `head -c 32 < /dev/urandom > secrets/random-key.default`
+3. **DO NOT** TOUCH `YIBP_BACKEND_PORT`
+```
+docker run --rm -p 12999:8080 -v ./secrets:/app \
+       -e DB_CONFIG_HOST=... -e DB_CONFIG_PORT=5432 \
+       -e DB_CONFIG_USER=theroot -e DB_CONFIG_PASSWORD=thepassword \
+       -e DB_CONFIG_DB=yibp_db -e LOG_DIRECTORY=/app/logs \
+       ghcr.io/yaiballprincess/backend:v1.0.0 migrate
+```
+4. 
+```
+docker run --name yaiballprincess-backend -d -p 12999:8080 -v ./secrets:/app \
+       -e DB_CONFIG_HOST=... -e DB_CONFIG_PORT=5432 \
+       -e DB_CONFIG_USER=theroot -e DB_CONFIG_PASSWORD=thepassword \
+       -e DB_CONFIG_DB=yibp_db -e LOG_DIRECTORY=/app/logs \
+       ghcr.io/yaiballprincess/backend:v1.0.0
+```
+
 ## How to run
 1. Generate JWK and save it to the file
 2. Generate a "crypto key": `head -c 32 < /dev/urandom > extra/random-key.default`
