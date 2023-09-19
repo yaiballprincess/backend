@@ -1,0 +1,36 @@
+DROP TABLE IF EXISTS "rule";
+
+CREATE TYPE rule_type AS ENUM ('regular', 'ignore', 'replace');
+
+CREATE TABLE "rule_meta" (
+    "id" INT NOT NULL PRIMARY KEY,
+    "type" rule_type NOT NULL,
+    "can_trigger" BOOL NOT NULL,
+    "is_active" BOOL NOT NULL
+);
+
+CREATE TABLE "regular_rule" (
+    "id" INT NOT NULL PRIMARY KEY REFERENCES "rule_meta" (id) ON DELETE CASCADE,
+    "name" TEXT NOT NULL,
+    "schedule" TEXT NOT NULL,
+    "sender_id" INT NOT NULL,
+    "peer_id" INT NOT NULL,
+    "poll_template_id" INT NOT NULL  REFERENCES "poll_template" (id),
+    
+    FOREIGN KEY (sender_id, peer_id) REFERENCES "receiver" (sender_id, peer_id)
+);
+
+CREATE TABLE "ignore_rule" (
+    "id" INT NOT NULL PRIMARY KEY REFERENCES "rule_meta" (id) ON DELETE CASCADE,
+    "regular_rule_id" INT NOT NULL REFERENCES "regular_rule" (id) ON DELETE CASCADE,
+    "starts_at" TIMESTAMPTZ NOT NULL,
+    "ends_at" TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE "replace_rule" (
+    "id" INT NOT NULL PRIMARY KEY REFERENCES "rule_meta" (id) ON DELETE CASCADE,
+    "regular_rule_id" INT NOT NULL REFERENCES "regular_rule" (id) ON DELETE CASCADE,
+    "starts_at" TIMESTAMPTZ NOT NULL,
+    "ends_at" TIMESTAMPTZ NOT NULL,
+    "new_poll_template_id" INT NOT NULL REFERENCES "poll_template" (id)
+);
