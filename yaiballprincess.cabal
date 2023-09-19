@@ -152,6 +152,7 @@ library
     OverloadedRecordDot
     QuasiQuotes
     RankNTypes
+    FunctionalDependencies
     TemplateHaskell
     TypeApplications
     TypeFamilies
