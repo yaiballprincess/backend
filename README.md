@@ -1,7 +1,7 @@
 # backend
 
 The application serves 
-1. scheduler that periodically creates a poll in a chat on VK.com
+1. scheduler that periodically creates a poll in a chat in VK.com
 2. RESTful API to manage the scheduler
 
 ## Installation
